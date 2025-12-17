@@ -1,0 +1,169 @@
+identity:
+  description: >
+    Establishes who the AI is, its name, role, and fundamental nature.
+    Defines the relationship between the AI and the user (assistant, partner, tool).
+    Sets the foundation for all subsequent behavioral instructions.
+
+personality:
+  description: >
+    Governs how the AI communicates, behaves, and presents itself.
+    Covers tone, interaction style, autonomy boundaries, and explicit behavioral
+    constraints that shape the user experience.
+  sections:
+    - guidelines:
+        description: General principles for interaction style and response formatting.
+    - behavior:
+        description: Constraints on decision-making like avoiding assumptions, not over-engineering, completing tasks fully.
+    - communication:
+        description: Output formatting rules including emoji usage, conciseness, reasoning transparency, markdown conventions.
+    - autonomy:
+        description: How much independent action the AI can take versus requiring user approval or confirmation.
+    - model_steering:
+        description: Emphatic instructions using caps, repetition, and specific prohibitions to override model defaults.
+    - examples:
+        description: Concrete scenarios demonstrating expected interaction patterns.
+
+environment:
+  description: >
+    Runtime context the AI operates within. Includes system information,
+    security boundaries, and platform-specific adaptations.
+  sections:
+    - platform:
+        description: OS detection, shell type, working directory, date/time awareness.
+    - security:
+        description: Rules around secrets, credentials, dangerous operations, and forbidden actions.
+    - sandboxing:
+        description: Network restrictions, file system boundaries, approval requirements for sensitive operations.
+
+code_style:
+  description: >
+    Standards for generated and modified code. Ensures consistency with
+    project conventions and quality expectations.
+  sections:
+    - conventions:
+        description: Formatting, naming, patterns to match existing codebase style.
+    - quality:
+        description: Security practices, accessibility, performance considerations.
+    - examples:
+        description: Sample code blocks demonstrating expected output format.
+
+search:
+  description: >
+    How the AI discovers and navigates code. Covers tool selection,
+    search strategies, and context management for exploration tasks.
+  sections:
+    - tool_selection:
+        description: When to use grep vs glob vs codebase indexing vs sub-agents.
+    - context_separation:
+        description: How to spawn sub-agents or background tasks for large searches.
+    - examples:
+        description: Sample search workflows and query patterns.
+
+workflow:
+  description: >
+    Structured approaches to problem-solving. Includes task tracking,
+    operational modes, and version control practices.
+  sections:
+    - task_management:
+        description: When and how to use todo lists, progress tracking, memory tools.
+    - modes:
+        description: Different operational states like planning, spec, architect, suggest, autopilot.
+    - git:
+        description: >
+          Version control operations including commit conventions,
+          branch management, PR creation, and safety constraints.
+        subsections:
+          - commands:
+              description: Which git commands to use and avoid.
+          - commits:
+              description: Message format, conventional commits, co-authoring, footer conventions.
+    - examples:
+        description: Sample workflows for features, bug fixes, refactoring.
+
+tool_policies:
+  description: >
+    Meta-instructions governing tool usage across all tools.
+    Establishes priorities, parallelization rules, and fallback behaviors.
+  sections:
+    - guidelines:
+        description: General rules for tool selection, preferring specialized tools over bash.
+    - model_steering:
+        description: Emphatic overrides for common model mistakes in tool usage.
+    - examples:
+        description: Correct and incorrect tool usage patterns.
+
+project_context:
+  description: >
+    Instructions for loading user or project-specific configuration.
+    Points to external files that customize AI behavior per workspace.
+  sections:
+    - config_files:
+        description: Paths like CLAUDE.md, AGENTS.md, .gemini/settings, .kiro/steering.
+
+tools_generic:
+  description: >
+    Individual tool definitions with consistent structure.
+    Each tool includes purpose, usage conditions, and schema.
+  sections:
+    - description:
+        description: What the tool does and its primary purpose.
+    - conditions:
+        description: When and where to use versus alternatives.
+    - usage:
+        description: How to invoke, required parameters, common patterns.
+    - schema:
+        description: Formal parameter definitions, types, constraints.
+
+tools_file:
+  description: >
+    File system operations for reading, writing, editing, and organizing files.
+    Core capability present in all coding assistants.
+  sections:
+    - read:
+        description: Viewing file contents, supporting various formats (text, images, notebooks, PDFs).
+    - write:
+        description: Creating new files, overwriting existing content.
+    - edit:
+        description: Targeted modifications using search/replace, diffs, or line-based edits.
+    - search:
+        description: Pattern matching with glob, content search with grep/ripgrep.
+    - directory:
+        description: Listing, creating, navigating directory structures.
+
+tools_shell:
+  description: >
+    Terminal and command execution capabilities. Running system commands,
+    background processes, and handling output.
+  sections:
+    - execution:
+        description: Running commands, timeout handling, output capture.
+    - background:
+        description: Long-running processes, async execution, task monitoring.
+    - restrictions:
+        description: Forbidden commands, interactive mode limitations.
+
+tools_communication:
+  description: >
+    Mechanisms for AI-user interaction beyond chat. Includes questions,
+    confirmations, and structured feedback.
+  sections:
+    - questions:
+        description: Asking for clarification, presenting choices, gathering preferences.
+    - notifications:
+        description: Progress updates, completion messages, error reporting.
+
+tools_advanced:
+  description: >
+    Specialized capabilities beyond basic file and shell operations.
+    Present in some but not all assistants.
+  sections:
+    - web:
+        description: Fetching URLs, web search, processing external content.
+    - agents:
+        description: Spawning sub-agents, parallel task execution, background agents.
+    - notebooks:
+        description: Jupyter notebook cell editing and execution.
+    - images:
+        description: Viewing and analyzing screenshots, diagrams, visual content.
+    - integrations:
+        description: MCP servers, external tool protocols, IDE hooks.
