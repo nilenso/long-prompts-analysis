@@ -1,0 +1,1299 @@
+{
+  "info": {
+    "id": "ses_4055082fbffeb5C2obeZ6msWnH",
+    "slug": "shiny-knight",
+    "version": "1.1.36",
+    "projectID": "11a94957dc038fc27c5ff976197ad2b2d0352d20",
+    "directory": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+    "title": "c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+    "time": {
+      "created": 1769437363460,
+      "updated": 1769437998473
+    },
+    "summary": {
+      "additions": 34,
+      "deletions": 6,
+      "files": 2
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "id": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "user",
+        "time": {
+          "created": 1769437363477
+        },
+        "summary": {
+          "title": "Test suite: fix code to pass tasks in TASK.md",
+          "diffs": [
+            {
+              "file": "qutebrowser/components/hostblock.py",
+              "before": "# vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:\n\n# Copyright 2014-2021 Florian Bruhin (The Compiler) <mail@qutebrowser.org>\n#\n# This file is part of qutebrowser.\n#\n# qutebrowser is free software: you can redistribute it and/or modify\n# it under the terms of the GNU General Public License as published by\n# the Free Software Foundation, either version 3 of the License, or\n# (at your option) any later version.\n#\n# qutebrowser is distributed in the hope that it will be useful,\n# but WITHOUT ANY WARRANTY; without even the implied warranty of\n# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n# GNU General Public License for more details.\n#\n# You should have received a copy of the GNU General Public License\n# along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.\n\n\"\"\"Functions related to host blocking.\"\"\"\n\nimport os.path\nimport posixpath\nimport zipfile\nimport logging\nimport pathlib\nfrom typing import cast, IO, Set\n\nfrom PyQt5.QtCore import QUrl\n\nfrom qutebrowser.api import (\n    hook,\n    config,\n    message,\n    interceptor,\n    apitypes,\n    qtutils,\n)\nfrom qutebrowser.components.utils import blockutils\nfrom qutebrowser.utils import version  # FIXME: Move needed parts into api namespace?\n\n\nlogger = logging.getLogger(\"network\")\nhost_blocker = cast(\"HostBlocker\", None)\n\n\ndef _guess_zip_filename(zf: zipfile.ZipFile) -> str:\n    \"\"\"Guess which file to use inside a zip file.\"\"\"\n    files = zf.namelist()\n    if len(files) == 1:\n        return files[0]\n    else:\n        for e in files:\n            if posixpath.splitext(e)[0].lower() == \"hosts\":\n                return e\n    raise FileNotFoundError(\"No hosts file found in zip\")\n\n\ndef get_fileobj(byte_io: IO[bytes]) -> IO[bytes]:\n    \"\"\"Get a usable file object to read the hosts file from.\"\"\"\n    byte_io.seek(0)  # rewind downloaded file\n    if zipfile.is_zipfile(byte_io):\n        byte_io.seek(0)  # rewind what zipfile.is_zipfile did\n        zf = zipfile.ZipFile(byte_io)\n        filename = _guess_zip_filename(zf)\n        byte_io = zf.open(filename, mode=\"r\")\n    else:\n        byte_io.seek(0)  # rewind what zipfile.is_zipfile did\n    return byte_io\n\n\ndef _should_be_used() -> bool:\n    \"\"\"Whether the hostblocker should be used or not.\"\"\"\n    method = config.val.content.blocking.method\n\n    adblock_info = version.MODULE_INFO[\"adblock\"]\n    adblock_usable = adblock_info.is_usable()\n\n    logger.debug(f\"Configured adblock method {method}, adblock library usable: \"\n                 f\"{adblock_usable}\")\n    return method in (\"both\", \"hosts\") or (method == \"auto\" and not adblock_usable)\n\n\nclass HostBlocker:\n\n    \"\"\"Manage blocked hosts based from /etc/hosts-like files.\n\n    Attributes:\n        enabled: Given the current blocking method, should the host blocker be enabled?\n        _blocked_hosts: A set of blocked hosts.\n        _config_blocked_hosts: A set of blocked hosts from ~/.config.\n        _local_hosts_file: The path to the blocked-hosts file.\n        _config_hosts_file: The path to a blocked-hosts in ~/.config\n        _has_basedir: Whether a custom --basedir is set.\n    \"\"\"\n\n    def __init__(\n        self,\n        *,\n        data_dir: pathlib.Path,\n        config_dir: pathlib.Path,\n        has_basedir: bool = False\n    ) -> None:\n        self.enabled = _should_be_used()\n        self._has_basedir = has_basedir\n        self._blocked_hosts: Set[str] = set()\n        self._config_blocked_hosts: Set[str] = set()\n\n        self._local_hosts_file = str(data_dir / \"blocked-hosts\")\n        self.update_files()\n\n        self._config_hosts_file = str(config_dir / \"blocked-hosts\")\n\n    def _is_blocked(self, request_url: QUrl, first_party_url: QUrl = None) -> bool:\n        \"\"\"Check whether the given request is blocked.\"\"\"\n        if not self.enabled:\n            return False\n\n        if first_party_url is not None and not first_party_url.isValid():\n            first_party_url = None\n\n        qtutils.ensure_valid(request_url)\n\n        if not config.get(\"content.blocking.enabled\", url=first_party_url):\n            return False\n\n        host = request_url.host()\n        return (\n            host in self._blocked_hosts or host in self._config_blocked_hosts\n        ) and not blockutils.is_whitelisted_url(request_url)\n\n    def filter_request(self, info: interceptor.Request) -> None:\n        \"\"\"Block the given request if necessary.\"\"\"\n        if self._is_blocked(\n            request_url=info.request_url, first_party_url=info.first_party_url\n        ):\n            logger.debug(\n                \"Request to {} blocked by host blocker.\".format(info.request_url.host())\n            )\n            info.block()\n\n    def _read_hosts_line(self, raw_line: bytes) -> Set[str]:\n        \"\"\"Read hosts from the given line.\n\n        Args:\n            line: The bytes object to read.\n\n        Returns:\n            A set containing valid hosts found\n            in the line.\n        \"\"\"\n        if raw_line.startswith(b\"#\"):\n            # Ignoring comments early so we don't have to care about\n            # encoding errors in them\n            return set()\n\n        line = raw_line.decode(\"utf-8\")\n\n        # Remove comments\n        hash_idx = line.find(\"#\")\n        line = line if hash_idx == -1 else line[:hash_idx]\n\n        parts = line.strip().split()\n        if len(parts) == 1:\n            # \"one host per line\" format\n            hosts = parts\n        else:\n            # /etc/hosts format\n            hosts = parts[1:]\n\n        filtered_hosts = set()\n        for host in hosts:\n            if \".\" in host and not host.endswith(\".localdomain\") and host != \"0.0.0.0\":\n                filtered_hosts.update([host])\n\n        return filtered_hosts\n\n    def _read_hosts_file(self, filename: str, target: Set[str]) -> bool:\n        \"\"\"Read hosts from the given filename.\n\n        Args:\n            filename: The file to read.\n            target: The set to store the hosts in.\n\n        Return:\n            True if a read was attempted, False otherwise\n        \"\"\"\n        if not os.path.exists(filename):\n            return False\n\n        try:\n            with open(filename, \"rb\") as f:\n                for line in f:\n                    target |= self._read_hosts_line(line)\n\n        except (OSError, UnicodeDecodeError):\n            logger.exception(\"Failed to read host blocklist!\")\n\n        return True\n\n    def read_hosts(self) -> None:\n        \"\"\"Read hosts from the existing blocked-hosts file.\"\"\"\n        self._blocked_hosts = set()\n\n        self._read_hosts_file(self._config_hosts_file, self._config_blocked_hosts)\n\n        found = self._read_hosts_file(self._local_hosts_file, self._blocked_hosts)\n\n        if not found:\n            if (\n                config.val.content.blocking.hosts.lists\n                and not self._has_basedir\n                and config.val.content.blocking.enabled\n                and self.enabled\n            ):\n                message.info(\"Run :adblock-update to get adblock lists.\")\n\n    def adblock_update(self) -> blockutils.BlocklistDownloads:\n        \"\"\"Update the adblock block lists.\"\"\"\n        self._read_hosts_file(self._config_hosts_file, self._config_blocked_hosts)\n        self._blocked_hosts = set()\n\n        blocklists = config.val.content.blocking.hosts.lists\n        dl = blockutils.BlocklistDownloads(blocklists)\n        dl.single_download_finished.connect(self._merge_file)\n        dl.all_downloads_finished.connect(self._on_lists_downloaded)\n        dl.initiate()\n        return dl\n\n    def _merge_file(self, byte_io: IO[bytes]) -> None:\n        \"\"\"Read and merge host files.\n\n        Args:\n            byte_io: The BytesIO object of the completed download.\n        \"\"\"\n        error_count = 0\n        line_count = 0\n        try:\n            f = get_fileobj(byte_io)\n        except (OSError, zipfile.BadZipFile, zipfile.LargeZipFile, LookupError) as e:\n            message.error(\n                \"hostblock: Error while reading {}: {} - {}\".format(\n                    byte_io.name, e.__class__.__name__, e\n                )\n            )\n            return\n\n        for line in f:\n            line_count += 1\n            try:\n                self._blocked_hosts |= self._read_hosts_line(line)\n            except UnicodeDecodeError:\n                logger.error(\"Failed to decode: {!r}\".format(line))\n                error_count += 1\n\n        logger.debug(\"{}: read {} lines\".format(byte_io.name, line_count))\n        if error_count > 0:\n            message.error(\n                \"hostblock: {} read errors for {}\".format(error_count, byte_io.name)\n            )\n\n    def _on_lists_downloaded(self, done_count: int) -> None:\n        \"\"\"Install block lists after files have been downloaded.\"\"\"\n        try:\n            with open(self._local_hosts_file, \"w\", encoding=\"utf-8\") as f:\n                for host in sorted(self._blocked_hosts):\n                    f.write(host + \"\\n\")\n                message.info(\n                    \"hostblock: Read {} hosts from {} sources.\".format(\n                        len(self._blocked_hosts), done_count\n                    )\n                )\n        except OSError:\n            logger.exception(\"Failed to write host block list!\")\n\n    def update_files(self) -> None:\n        \"\"\"Update files when the config changed.\"\"\"\n        if not config.val.content.blocking.hosts.lists:\n            try:\n                os.remove(self._local_hosts_file)\n            except FileNotFoundError:\n                pass\n            except OSError as e:\n                logger.exception(\"Failed to delete hosts file: {}\".format(e))\n\n\n@hook.config_changed(\"content.blocking.hosts.lists\")\ndef on_lists_changed() -> None:\n    host_blocker.update_files()\n\n\n@hook.config_changed(\"content.blocking.method\")\ndef on_method_changed() -> None:\n    host_blocker.enabled = _should_be_used()\n\n\n@hook.init()\ndef init(context: apitypes.InitContext) -> None:\n    \"\"\"Initialize the host blocker.\"\"\"\n    global host_blocker\n    host_blocker = HostBlocker(\n        data_dir=context.data_dir,\n        config_dir=context.config_dir,\n        has_basedir=context.args.basedir is not None,\n    )\n    host_blocker.read_hosts()\n    interceptor.register(host_blocker.filter_request)\n",
+              "after": "# vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:\n\n# Copyright 2014-2021 Florian Bruhin (The Compiler) <mail@qutebrowser.org>\n#\n# This file is part of qutebrowser.\n#\n# qutebrowser is free software: you can redistribute it and/or modify\n# it under the terms of the GNU General Public License as published by\n# the Free Software Foundation, either version 3 of the License, or\n# (at your option) any later version.\n#\n# qutebrowser is distributed in the hope that it will be useful,\n# but WITHOUT ANY WARRANTY; without even the implied warranty of\n# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n# GNU General Public License for more details.\n#\n# You should have received a copy of the GNU General Public License\n# along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.\n\n\"\"\"Functions related to host blocking.\"\"\"\n\nimport os.path\nimport posixpath\nimport zipfile\nimport logging\nimport pathlib\nfrom typing import cast, IO, Set\n\nfrom PyQt5.QtCore import QUrl\n\nfrom qutebrowser.api import (\n    hook,\n    config,\n    message,\n    interceptor,\n    apitypes,\n    qtutils,\n)\nfrom qutebrowser.components.utils import blockutils\nfrom qutebrowser.utils import urlutils, version  # FIXME: Move needed parts into api namespace?\n\n\nlogger = logging.getLogger(\"network\")\nhost_blocker = cast(\"HostBlocker\", None)\n\n\ndef _guess_zip_filename(zf: zipfile.ZipFile) -> str:\n    \"\"\"Guess which file to use inside a zip file.\"\"\"\n    files = zf.namelist()\n    if len(files) == 1:\n        return files[0]\n    else:\n        for e in files:\n            if posixpath.splitext(e)[0].lower() == \"hosts\":\n                return e\n    raise FileNotFoundError(\"No hosts file found in zip\")\n\n\ndef get_fileobj(byte_io: IO[bytes]) -> IO[bytes]:\n    \"\"\"Get a usable file object to read the hosts file from.\"\"\"\n    byte_io.seek(0)  # rewind downloaded file\n    if zipfile.is_zipfile(byte_io):\n        byte_io.seek(0)  # rewind what zipfile.is_zipfile did\n        zf = zipfile.ZipFile(byte_io)\n        filename = _guess_zip_filename(zf)\n        byte_io = zf.open(filename, mode=\"r\")\n    else:\n        byte_io.seek(0)  # rewind what zipfile.is_zipfile did\n    return byte_io\n\n\ndef _should_be_used() -> bool:\n    \"\"\"Whether the hostblocker should be used or not.\"\"\"\n    method = config.val.content.blocking.method\n\n    adblock_info = version.MODULE_INFO[\"adblock\"]\n    adblock_usable = adblock_info.is_usable()\n\n    logger.debug(f\"Configured adblock method {method}, adblock library usable: \"\n                 f\"{adblock_usable}\")\n    return method in (\"both\", \"hosts\") or (method == \"auto\" and not adblock_usable)\n\n\nclass HostBlocker:\n\n    \"\"\"Manage blocked hosts based from /etc/hosts-like files.\n\n    Attributes:\n        enabled: Given the current blocking method, should the host blocker be enabled?\n        _blocked_hosts: A set of blocked hosts.\n        _config_blocked_hosts: A set of blocked hosts from ~/.config.\n        _local_hosts_file: The path to the blocked-hosts file.\n        _config_hosts_file: The path to a blocked-hosts in ~/.config\n        _has_basedir: Whether a custom --basedir is set.\n    \"\"\"\n\n    def __init__(\n        self,\n        *,\n        data_dir: pathlib.Path,\n        config_dir: pathlib.Path,\n        has_basedir: bool = False\n    ) -> None:\n        self.enabled = _should_be_used()\n        self._has_basedir = has_basedir\n        self._blocked_hosts: Set[str] = set()\n        self._config_blocked_hosts: Set[str] = set()\n\n        self._local_hosts_file = str(data_dir / \"blocked-hosts\")\n        self.update_files()\n\n        self._config_hosts_file = str(config_dir / \"blocked-hosts\")\n\n    def _is_blocked(self, request_url: QUrl, first_party_url: QUrl = None) -> bool:\n        \"\"\"Check whether the given request is blocked.\"\"\"\n        if not self.enabled:\n            return False\n\n        if first_party_url is not None and not first_party_url.isValid():\n            first_party_url = None\n\n        qtutils.ensure_valid(request_url)\n\n        if not config.get(\"content.blocking.enabled\", url=first_party_url):\n            return False\n\n        if blockutils.is_whitelisted_url(request_url):\n            return False\n\n        host = request_url.host().lower()\n        for candidate in urlutils.widened_hostnames(host):\n            if candidate in self._blocked_hosts or candidate in self._config_blocked_hosts:\n                return True\n\n        return False\n\n    def filter_request(self, info: interceptor.Request) -> None:\n        \"\"\"Block the given request if necessary.\"\"\"\n        if self._is_blocked(\n            request_url=info.request_url, first_party_url=info.first_party_url\n        ):\n            logger.debug(\n                \"Request to {} blocked by host blocker.\".format(info.request_url.host())\n            )\n            info.block()\n\n    def _read_hosts_line(self, raw_line: bytes) -> Set[str]:\n        \"\"\"Read hosts from the given line.\n\n        Args:\n            line: The bytes object to read.\n\n        Returns:\n            A set containing valid hosts found\n            in the line.\n        \"\"\"\n        if raw_line.startswith(b\"#\"):\n            # Ignoring comments early so we don't have to care about\n            # encoding errors in them\n            return set()\n\n        line = raw_line.decode(\"utf-8\")\n\n        # Remove comments\n        hash_idx = line.find(\"#\")\n        line = line if hash_idx == -1 else line[:hash_idx]\n\n        parts = line.strip().split()\n        if len(parts) == 1:\n            # \"one host per line\" format\n            hosts = parts\n        else:\n            # /etc/hosts format\n            hosts = parts[1:]\n\n        filtered_hosts = set()\n        for host in hosts:\n            host = host.lower()\n            if \".\" in host and not host.endswith(\".localdomain\") and host != \"0.0.0.0\":\n                filtered_hosts.update([host])\n\n        return filtered_hosts\n\n    def _read_hosts_file(self, filename: str, target: Set[str]) -> bool:\n        \"\"\"Read hosts from the given filename.\n\n        Args:\n            filename: The file to read.\n            target: The set to store the hosts in.\n\n        Return:\n            True if a read was attempted, False otherwise\n        \"\"\"\n        if not os.path.exists(filename):\n            return False\n\n        try:\n            with open(filename, \"rb\") as f:\n                for line in f:\n                    target |= self._read_hosts_line(line)\n\n        except (OSError, UnicodeDecodeError):\n            logger.exception(\"Failed to read host blocklist!\")\n\n        return True\n\n    def read_hosts(self) -> None:\n        \"\"\"Read hosts from the existing blocked-hosts file.\"\"\"\n        self._blocked_hosts = set()\n\n        self._read_hosts_file(self._config_hosts_file, self._config_blocked_hosts)\n\n        found = self._read_hosts_file(self._local_hosts_file, self._blocked_hosts)\n\n        if not found:\n            if (\n                config.val.content.blocking.hosts.lists\n                and not self._has_basedir\n                and config.val.content.blocking.enabled\n                and self.enabled\n            ):\n                message.info(\"Run :adblock-update to get adblock lists.\")\n\n    def adblock_update(self) -> blockutils.BlocklistDownloads:\n        \"\"\"Update the adblock block lists.\"\"\"\n        self._read_hosts_file(self._config_hosts_file, self._config_blocked_hosts)\n        self._blocked_hosts = set()\n\n        blocklists = config.val.content.blocking.hosts.lists\n        dl = blockutils.BlocklistDownloads(blocklists)\n        dl.single_download_finished.connect(self._merge_file)\n        dl.all_downloads_finished.connect(self._on_lists_downloaded)\n        dl.initiate()\n        return dl\n\n    def _merge_file(self, byte_io: IO[bytes]) -> None:\n        \"\"\"Read and merge host files.\n\n        Args:\n            byte_io: The BytesIO object of the completed download.\n        \"\"\"\n        error_count = 0\n        line_count = 0\n        try:\n            f = get_fileobj(byte_io)\n        except (OSError, zipfile.BadZipFile, zipfile.LargeZipFile, LookupError) as e:\n            message.error(\n                \"hostblock: Error while reading {}: {} - {}\".format(\n                    byte_io.name, e.__class__.__name__, e\n                )\n            )\n            return\n\n        for line in f:\n            line_count += 1\n            try:\n                self._blocked_hosts |= self._read_hosts_line(line)\n            except UnicodeDecodeError:\n                logger.error(\"Failed to decode: {!r}\".format(line))\n                error_count += 1\n\n        logger.debug(\"{}: read {} lines\".format(byte_io.name, line_count))\n        if error_count > 0:\n            message.error(\n                \"hostblock: {} read errors for {}\".format(error_count, byte_io.name)\n            )\n\n    def _on_lists_downloaded(self, done_count: int) -> None:\n        \"\"\"Install block lists after files have been downloaded.\"\"\"\n        try:\n            with open(self._local_hosts_file, \"w\", encoding=\"utf-8\") as f:\n                for host in sorted(self._blocked_hosts):\n                    f.write(host + \"\\n\")\n                message.info(\n                    \"hostblock: Read {} hosts from {} sources.\".format(\n                        len(self._blocked_hosts), done_count\n                    )\n                )\n        except OSError:\n            logger.exception(\"Failed to write host block list!\")\n\n    def update_files(self) -> None:\n        \"\"\"Update files when the config changed.\"\"\"\n        if not config.val.content.blocking.hosts.lists:\n            try:\n                os.remove(self._local_hosts_file)\n            except FileNotFoundError:\n                pass\n            except OSError as e:\n                logger.exception(\"Failed to delete hosts file: {}\".format(e))\n\n\n@hook.config_changed(\"content.blocking.hosts.lists\")\ndef on_lists_changed() -> None:\n    host_blocker.update_files()\n\n\n@hook.config_changed(\"content.blocking.method\")\ndef on_method_changed() -> None:\n    host_blocker.enabled = _should_be_used()\n\n\n@hook.init()\ndef init(context: apitypes.InitContext) -> None:\n    \"\"\"Initialize the host blocker.\"\"\"\n    global host_blocker\n    host_blocker = HostBlocker(\n        data_dir=context.data_dir,\n        config_dir=context.config_dir,\n        has_basedir=context.args.basedir is not None,\n    )\n    host_blocker.read_hosts()\n    interceptor.register(host_blocker.filter_request)\n",
+              "additions": 11,
+              "deletions": 5
+            },
+            {
+              "file": "qutebrowser/utils/urlutils.py",
+              "before": "# vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:\n\n# Copyright 2014-2021 Florian Bruhin (The Compiler) <mail@qutebrowser.org>\n#\n# This file is part of qutebrowser.\n#\n# qutebrowser is free software: you can redistribute it and/or modify\n# it under the terms of the GNU General Public License as published by\n# the Free Software Foundation, either version 3 of the License, or\n# (at your option) any later version.\n#\n# qutebrowser is distributed in the hope that it will be useful,\n# but WITHOUT ANY WARRANTY; without even the implied warranty of\n# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n# GNU General Public License for more details.\n#\n# You should have received a copy of the GNU General Public License\n# along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.\n\n\"\"\"Utils regarding URL handling.\"\"\"\n\nimport re\nimport base64\nimport os.path\nimport ipaddress\nimport posixpath\nimport urllib.parse\nimport mimetypes\nfrom typing import Optional, Tuple, Union\n\nfrom PyQt5.QtCore import QUrl\nfrom PyQt5.QtNetwork import QHostInfo, QHostAddress, QNetworkProxy\n\nfrom qutebrowser.api import cmdutils\nfrom qutebrowser.config import config\nfrom qutebrowser.utils import log, qtutils, message, utils\nfrom qutebrowser.browser.network import pac\n\n\n# FIXME: we probably could raise some exceptions on invalid URLs\n# https://github.com/qutebrowser/qutebrowser/issues/108\n\n\n# URL schemes supported by QtWebEngine\nWEBENGINE_SCHEMES = [\n    'about',\n    'data',\n    'file',\n    'filesystem',\n    'ftp',\n    'http',\n    'https',\n    'javascript',\n    'ws',\n    'wss',\n]\n\n\nclass Error(Exception):\n\n    \"\"\"Base class for errors in this module.\"\"\"\n\n\nclass InvalidUrlError(Error):\n\n    \"\"\"Error raised if a function got an invalid URL.\"\"\"\n\n    def __init__(self, url: QUrl) -> None:\n        if url.isValid():\n            raise ValueError(\"Got valid URL {}!\".format(url.toDisplayString()))\n        self.url = url\n        self.msg = get_errstring(url)\n        super().__init__(self.msg)\n\n\ndef _parse_search_term(s: str) -> Tuple[Optional[str], Optional[str]]:\n    \"\"\"Get a search engine name and search term from a string.\n\n    Args:\n        s: The string to get a search engine for.\n\n    Return:\n        A (engine, term) tuple, where engine is None for the default engine.\n    \"\"\"\n    s = s.strip()\n    split = s.split(maxsplit=1)\n    if not split:\n        raise ValueError(\"Empty search term!\")\n\n    if len(split) == 2:\n        if split[0] in config.val.url.searchengines:\n            engine: Optional[str] = split[0]\n            term: Optional[str] = split[1]\n        else:\n            engine = None\n            term = s\n    else:\n        if config.val.url.open_base_url and s in config.val.url.searchengines:\n            engine = s\n            term = None\n        else:\n            engine = None\n            term = s\n\n    log.url.debug(\"engine {}, term {!r}\".format(engine, term))\n    return (engine, term)\n\n\ndef _get_search_url(txt: str) -> QUrl:\n    \"\"\"Get a search engine URL for a text.\n\n    Args:\n        txt: Text to search for.\n\n    Return:\n        The search URL as a QUrl.\n    \"\"\"\n    log.url.debug(\"Finding search engine for {!r}\".format(txt))\n    engine, term = _parse_search_term(txt)\n    if not engine:\n        engine = 'DEFAULT'\n    if term:\n        template = config.val.url.searchengines[engine]\n        semiquoted_term = urllib.parse.quote(term)\n        quoted_term = urllib.parse.quote(term, safe='')\n        evaluated = template.format(semiquoted_term,\n                                    unquoted=term,\n                                    quoted=quoted_term,\n                                    semiquoted=semiquoted_term)\n        url = QUrl.fromUserInput(evaluated)\n    else:\n        url = QUrl.fromUserInput(config.val.url.searchengines[engine])\n        url.setPath(None)  # type: ignore[arg-type]\n        url.setFragment(None)  # type: ignore[arg-type]\n        url.setQuery(None)  # type: ignore[call-overload]\n    qtutils.ensure_valid(url)\n    return url\n\n\ndef _is_url_naive(urlstr: str) -> bool:\n    \"\"\"Naive check if given URL is really a URL.\n\n    Args:\n        urlstr: The URL to check for, as string.\n\n    Return:\n        True if the URL really is a URL, False otherwise.\n    \"\"\"\n    url = QUrl.fromUserInput(urlstr)\n    assert url.isValid()\n    host = url.host()\n\n    # Valid IPv4/IPv6 address. Qt converts things like \"23.42\" or \"1337\" or\n    # \"0xDEAD\" to IP addresses, which we don't like, so we check if the host\n    # from Qt is part of the input.\n    if (not utils.raises(ValueError, ipaddress.ip_address, host) and\n            host in urlstr):\n        return True\n\n    tld = r'\\.([^.0-9_-]+|xn--[a-z0-9-]+)$'\n    forbidden = r'[\\u0000-\\u002c\\u002f\\u003a-\\u0060\\u007b-\\u00b6]'\n    return bool(re.search(tld, host) and not re.search(forbidden, host))\n\n\ndef _is_url_dns(urlstr: str) -> bool:\n    \"\"\"Check if a URL is really a URL via DNS.\n\n    Args:\n        url: The URL to check for as a string.\n\n    Return:\n        True if the URL really is a URL, False otherwise.\n    \"\"\"\n    url = QUrl.fromUserInput(urlstr)\n    assert url.isValid()\n\n    if (utils.raises(ValueError, ipaddress.ip_address, urlstr) and\n            not QHostAddress(urlstr).isNull()):\n        log.url.debug(\"Bogus IP URL -> False\")\n        # Qt treats things like \"23.42\" or \"1337\" or \"0xDEAD\" as valid URLs\n        # which we don't want to.\n        return False\n\n    host = url.host()\n    if not host:\n        log.url.debug(\"URL has no host -> False\")\n        return False\n    log.url.debug(\"Doing DNS request for {}\".format(host))\n    info = QHostInfo.fromName(host)\n    return not info.error()\n\n\ndef fuzzy_url(urlstr: str,\n              cwd: str = None,\n              relative: bool = False,\n              do_search: bool = True,\n              force_search: bool = False) -> QUrl:\n    \"\"\"Get a QUrl based on a user input which is URL or search term.\n\n    Args:\n        urlstr: URL to load as a string.\n        cwd: The current working directory, or None.\n        relative: Whether to resolve relative files.\n        do_search: Whether to perform a search on non-URLs.\n        force_search: Whether to force a search even if the content can be\n                      interpreted as a URL or a path.\n\n    Return:\n        A target QUrl to a search page or the original URL.\n    \"\"\"\n    urlstr = urlstr.strip()\n    path = get_path_if_valid(urlstr, cwd=cwd, relative=relative,\n                             check_exists=True)\n\n    if not force_search and path is not None:\n        url = QUrl.fromLocalFile(path)\n    elif force_search or (do_search and not is_url(urlstr)):\n        # probably a search term\n        log.url.debug(\"URL is a fuzzy search term\")\n        try:\n            url = _get_search_url(urlstr)\n        except ValueError:  # invalid search engine\n            url = QUrl.fromUserInput(urlstr)\n    else:  # probably an address\n        log.url.debug(\"URL is a fuzzy address\")\n        url = QUrl.fromUserInput(urlstr)\n    log.url.debug(\"Converting fuzzy term {!r} to URL -> {}\".format(\n        urlstr, url.toDisplayString()))\n    ensure_valid(url)\n    return url\n\n\ndef _has_explicit_scheme(url: QUrl) -> bool:\n    \"\"\"Check if a url has an explicit scheme given.\n\n    Args:\n        url: The URL as QUrl.\n    \"\"\"\n    # Note that generic URI syntax actually would allow a second colon\n    # after the scheme delimiter. Since we don't know of any URIs\n    # using this and want to support e.g. searching for scoped C++\n    # symbols, we treat this as not a URI anyways.\n    return bool(url.isValid() and url.scheme() and\n                (url.host() or url.path()) and\n                not url.path().startswith(':'))\n\n\ndef is_special_url(url: QUrl) -> bool:\n    \"\"\"Return True if url is an about:... or other special URL.\n\n    Args:\n        url: The URL as QUrl.\n    \"\"\"\n    if not url.isValid():\n        return False\n    special_schemes = ('about', 'qute', 'file')\n    return url.scheme() in special_schemes\n\n\ndef is_url(urlstr: str) -> bool:\n    \"\"\"Check if url seems to be a valid URL.\n\n    Args:\n        urlstr: The URL as string.\n\n    Return:\n        True if it is a valid URL, False otherwise.\n    \"\"\"\n    autosearch = config.val.url.auto_search\n\n    log.url.debug(\"Checking if {!r} is a URL (autosearch={}).\".format(\n        urlstr, autosearch))\n\n    urlstr = urlstr.strip()\n    qurl = QUrl(urlstr)\n    qurl_userinput = QUrl.fromUserInput(urlstr)\n\n    if autosearch == 'never':\n        # no autosearch, so everything is a URL unless it has an explicit\n        # search engine.\n        try:\n            engine, _term = _parse_search_term(urlstr)\n        except ValueError:\n            return False\n        else:\n            return engine is None\n\n    if not qurl_userinput.isValid():\n        # This will also catch non-URLs containing spaces.\n        return False\n\n    if _has_explicit_scheme(qurl) and ' ' not in urlstr:\n        # URLs with explicit schemes are always URLs\n        log.url.debug(\"Contains explicit scheme\")\n        url = True\n    elif (autosearch == 'schemeless' and\n          (not _has_explicit_scheme(qurl) or ' ' in urlstr)):\n        # When autosearch=schemeless, URLs must contain schemes to be valid\n        log.url.debug(\"No explicit scheme in given URL, treating as non-URL\")\n        url = False\n    elif qurl_userinput.host() in ['localhost', '127.0.0.1', '::1']:\n        log.url.debug(\"Is localhost.\")\n        url = True\n    elif is_special_url(qurl):\n        # Special URLs are always URLs, even with autosearch=never\n        log.url.debug(\"Is a special URL.\")\n        url = True\n    elif autosearch == 'dns':\n        log.url.debug(\"Checking via DNS check\")\n        # We want to use QUrl.fromUserInput here, as the user might enter\n        # \"foo.de\" and that should be treated as URL here.\n        url = ' ' not in qurl_userinput.userName() and _is_url_dns(urlstr)\n    elif autosearch == 'naive':\n        log.url.debug(\"Checking via naive check\")\n        url = ' ' not in qurl_userinput.userName() and _is_url_naive(urlstr)\n    else:  # pragma: no cover\n        raise ValueError(\"Invalid autosearch value\")\n    log.url.debug(\"url = {}\".format(url))\n    return url\n\n\ndef ensure_valid(url: QUrl) -> None:\n    if not url.isValid():\n        raise InvalidUrlError(url)\n\n\ndef invalid_url_error(url: QUrl, action: str) -> None:\n    \"\"\"Display an error message for a URL.\n\n    Args:\n        action: The action which was interrupted by the error.\n    \"\"\"\n    if url.isValid():\n        raise ValueError(\"Calling invalid_url_error with valid URL {}\".format(\n            url.toDisplayString()))\n    errstring = get_errstring(\n        url, \"Trying to {} with invalid URL\".format(action))\n    message.error(errstring)\n\n\ndef raise_cmdexc_if_invalid(url: QUrl) -> None:\n    \"\"\"Check if the given QUrl is invalid, and if so, raise a CommandError.\"\"\"\n    try:\n        ensure_valid(url)\n    except InvalidUrlError as e:\n        raise cmdutils.CommandError(str(e))\n\n\ndef get_path_if_valid(pathstr: str,\n                      cwd: str = None,\n                      relative: bool = False,\n                      check_exists: bool = False) -> Optional[str]:\n    \"\"\"Check if path is a valid path.\n\n    Args:\n        pathstr: The path as string.\n        cwd: The current working directory, or None.\n        relative: Whether to resolve relative files.\n        check_exists: Whether to check if the file\n                      actually exists of filesystem.\n\n    Return:\n        The path if it is a valid path, None otherwise.\n    \"\"\"\n    pathstr = pathstr.strip()\n    log.url.debug(\"Checking if {!r} is a path\".format(pathstr))\n    expanded = os.path.expanduser(pathstr)\n\n    if os.path.isabs(expanded):\n        path: Optional[str] = expanded\n    elif relative and cwd:\n        path = os.path.join(cwd, expanded)\n    elif relative:\n        try:\n            path = os.path.abspath(expanded)\n        except OSError:\n            path = None\n    else:\n        path = None\n\n    if check_exists:\n        if path is not None:\n            try:\n                if os.path.exists(path):\n                    log.url.debug(\"URL is a local file\")\n                else:\n                    path = None\n            except UnicodeEncodeError:\n                log.url.debug(\n                    \"URL contains characters which are not present in the \"\n                    \"current locale\")\n                path = None\n\n    return path\n\n\ndef filename_from_url(url: QUrl, fallback: str = None) -> Optional[str]:\n    \"\"\"Get a suitable filename from a URL.\n\n    Args:\n        url: The URL to parse, as a QUrl.\n        fallback: Value to use if no name can be determined.\n\n    Return:\n        The suggested filename as a string, or None.\n    \"\"\"\n    if not url.isValid():\n        return fallback\n\n    if url.scheme().lower() == 'data':\n        mimetype, _encoding = mimetypes.guess_type(url.toString())\n        if not mimetype:\n            return fallback\n\n        ext = utils.mimetype_extension(mimetype) or ''\n        return 'download' + ext\n\n    pathname = posixpath.basename(url.path())\n    if pathname:\n        return pathname\n    elif url.host():\n        return url.host() + '.html'\n    else:\n        return fallback\n\n\nHostTupleType = Tuple[str, str, int]\n\n\ndef host_tuple(url: QUrl) -> HostTupleType:\n    \"\"\"Get a (scheme, host, port) tuple from a QUrl.\n\n    This is suitable to identify a connection, e.g. for SSL errors.\n    \"\"\"\n    ensure_valid(url)\n    scheme, host, port = url.scheme(), url.host(), url.port()\n    assert scheme\n    if not host:\n        raise ValueError(\"Got URL {} without host.\".format(\n            url.toDisplayString()))\n    if port == -1:\n        port_mapping = {\n            'http': 80,\n            'https': 443,\n            'ftp': 21,\n        }\n        try:\n            port = port_mapping[scheme]\n        except KeyError:\n            raise ValueError(\"Got URL {} with unknown port.\".format(\n                url.toDisplayString()))\n    return scheme, host, port\n\n\ndef get_errstring(url: QUrl, base: str = \"Invalid URL\") -> str:\n    \"\"\"Get an error string for a URL.\n\n    Args:\n        url: The URL as a QUrl.\n        base: The base error string.\n\n    Return:\n        A new string with url.errorString() is appended if available.\n    \"\"\"\n    url_error = url.errorString()\n    if url_error:\n        return base + \" - {}\".format(url_error)\n    else:\n        return base\n\n\ndef same_domain(url1: QUrl, url2: QUrl) -> bool:\n    \"\"\"Check if url1 and url2 belong to the same website.\n\n    This will use a \"public suffix list\" to determine what a \"top level domain\"\n    is. All further domains are ignored.\n\n    For example example.com and www.example.com are considered the same. but\n    example.co.uk and test.co.uk are not.\n\n    If the URL's schemes or ports are different, they are always treated as not equal.\n\n    Return:\n        True if the domains are the same, False otherwise.\n    \"\"\"\n    ensure_valid(url1)\n    ensure_valid(url2)\n\n    if url1.scheme() != url2.scheme():\n        return False\n    if url1.port() != url2.port():\n        return False\n\n    suffix1 = url1.topLevelDomain()\n    suffix2 = url2.topLevelDomain()\n    if not suffix1:\n        return url1.host() == url2.host()\n\n    if suffix1 != suffix2:\n        return False\n\n    domain1 = url1.host()[:-len(suffix1)].split('.')[-1]\n    domain2 = url2.host()[:-len(suffix2)].split('.')[-1]\n    return domain1 == domain2\n\n\ndef encoded_url(url: QUrl) -> str:\n    \"\"\"Return the fully encoded url as string.\n\n    Args:\n        url: The url to encode as QUrl.\n    \"\"\"\n    return url.toEncoded().data().decode('ascii')\n\n\ndef file_url(path: str) -> str:\n    \"\"\"Return a file:// url (as string) to the given local path.\n\n    Arguments:\n        path: The absolute path to the local file\n    \"\"\"\n    url = QUrl.fromLocalFile(path)\n    return url.toString(QUrl.FullyEncoded)  # type: ignore[arg-type]\n\n\ndef data_url(mimetype: str, data: bytes) -> QUrl:\n    \"\"\"Get a data: QUrl for the given data.\"\"\"\n    b64 = base64.b64encode(data).decode('ascii')\n    url = QUrl('data:{};base64,{}'.format(mimetype, b64))\n    qtutils.ensure_valid(url)\n    return url\n\n\ndef safe_display_string(qurl: QUrl) -> str:\n    \"\"\"Get a IDN-homograph phishing safe form of the given QUrl.\n\n    If we're dealing with a Punycode-encoded URL, this prepends the hostname in\n    its encoded form, to make sure those URLs are distinguishable.\n\n    See https://github.com/qutebrowser/qutebrowser/issues/2547\n    and https://bugreports.qt.io/browse/QTBUG-60365\n    \"\"\"\n    ensure_valid(qurl)\n\n    host = qurl.host(QUrl.FullyEncoded)\n    assert '..' not in host, qurl  # https://bugreports.qt.io/browse/QTBUG-60364\n\n    for part in host.split('.'):\n        url_host = qurl.host(QUrl.FullyDecoded)\n        if part.startswith('xn--') and host != url_host:\n            return '({}) {}'.format(host, qurl.toDisplayString())\n\n    return qurl.toDisplayString()\n\n\nclass InvalidProxyTypeError(Exception):\n\n    \"\"\"Error raised when proxy_from_url gets an unknown proxy type.\"\"\"\n\n    def __init__(self, typ: str) -> None:\n        super().__init__(\"Invalid proxy type {}!\".format(typ))\n\n\ndef proxy_from_url(url: QUrl) -> Union[QNetworkProxy, pac.PACFetcher]:\n    \"\"\"Create a QNetworkProxy from QUrl and a proxy type.\n\n    Args:\n        url: URL of a proxy (possibly with credentials).\n\n    Return:\n        New QNetworkProxy.\n    \"\"\"\n    ensure_valid(url)\n\n    scheme = url.scheme()\n    if scheme in ['pac+http', 'pac+https', 'pac+file']:\n        fetcher = pac.PACFetcher(url)\n        fetcher.fetch()\n        return fetcher\n\n    types = {\n        'http': QNetworkProxy.HttpProxy,\n        'socks': QNetworkProxy.Socks5Proxy,\n        'socks5': QNetworkProxy.Socks5Proxy,\n        'direct': QNetworkProxy.NoProxy,\n    }\n    if scheme not in types:\n        raise InvalidProxyTypeError(scheme)\n\n    proxy = QNetworkProxy(types[scheme], url.host())\n\n    if url.port() != -1:\n        proxy.setPort(url.port())\n    if url.userName():\n        proxy.setUser(url.userName())\n    if url.password():\n        proxy.setPassword(url.password())\n    return proxy\n\n\ndef parse_javascript_url(url: QUrl) -> str:\n    \"\"\"Get JavaScript source from the given URL.\n\n    See https://wiki.whatwg.org/wiki/URL_schemes#javascript:_URLs\n    and https://github.com/whatwg/url/issues/385\n    \"\"\"\n    ensure_valid(url)\n    if url.scheme() != 'javascript':\n        raise Error(\"Expected a javascript:... URL\")\n    if url.authority():\n        raise Error(\"URL contains unexpected components: {}\"\n                    .format(url.authority()))\n\n    urlstr = url.toString(QUrl.FullyEncoded)  # type: ignore[arg-type]\n    urlstr = urllib.parse.unquote(urlstr)\n\n    code = urlstr[len('javascript:'):]\n    if not code:\n        raise Error(\"Resulted in empty JavaScript code\")\n\n    return code\n",
+              "after": "# vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:\n\n# Copyright 2014-2021 Florian Bruhin (The Compiler) <mail@qutebrowser.org>\n#\n# This file is part of qutebrowser.\n#\n# qutebrowser is free software: you can redistribute it and/or modify\n# it under the terms of the GNU General Public License as published by\n# the Free Software Foundation, either version 3 of the License, or\n# (at your option) any later version.\n#\n# qutebrowser is distributed in the hope that it will be useful,\n# but WITHOUT ANY WARRANTY; without even the implied warranty of\n# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n# GNU General Public License for more details.\n#\n# You should have received a copy of the GNU General Public License\n# along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.\n\n\"\"\"Utils regarding URL handling.\"\"\"\n\nimport re\nimport base64\nimport os.path\nimport ipaddress\nimport posixpath\nimport urllib.parse\nimport mimetypes\nfrom typing import Iterator, Optional, Tuple, Union\n\nfrom PyQt5.QtCore import QUrl\nfrom PyQt5.QtNetwork import QHostInfo, QHostAddress, QNetworkProxy\n\nfrom qutebrowser.api import cmdutils\nfrom qutebrowser.config import config\nfrom qutebrowser.utils import log, qtutils, message, utils\nfrom qutebrowser.browser.network import pac\n\n\n# FIXME: we probably could raise some exceptions on invalid URLs\n# https://github.com/qutebrowser/qutebrowser/issues/108\n\n\n# URL schemes supported by QtWebEngine\nWEBENGINE_SCHEMES = [\n    'about',\n    'data',\n    'file',\n    'filesystem',\n    'ftp',\n    'http',\n    'https',\n    'javascript',\n    'ws',\n    'wss',\n]\n\n\nclass Error(Exception):\n\n    \"\"\"Base class for errors in this module.\"\"\"\n\n\nclass InvalidUrlError(Error):\n\n    \"\"\"Error raised if a function got an invalid URL.\"\"\"\n\n    def __init__(self, url: QUrl) -> None:\n        if url.isValid():\n            raise ValueError(\"Got valid URL {}!\".format(url.toDisplayString()))\n        self.url = url\n        self.msg = get_errstring(url)\n        super().__init__(self.msg)\n\n\ndef _parse_search_term(s: str) -> Tuple[Optional[str], Optional[str]]:\n    \"\"\"Get a search engine name and search term from a string.\n\n    Args:\n        s: The string to get a search engine for.\n\n    Return:\n        A (engine, term) tuple, where engine is None for the default engine.\n    \"\"\"\n    s = s.strip()\n    split = s.split(maxsplit=1)\n    if not split:\n        raise ValueError(\"Empty search term!\")\n\n    if len(split) == 2:\n        if split[0] in config.val.url.searchengines:\n            engine: Optional[str] = split[0]\n            term: Optional[str] = split[1]\n        else:\n            engine = None\n            term = s\n    else:\n        if config.val.url.open_base_url and s in config.val.url.searchengines:\n            engine = s\n            term = None\n        else:\n            engine = None\n            term = s\n\n    log.url.debug(\"engine {}, term {!r}\".format(engine, term))\n    return (engine, term)\n\n\ndef _get_search_url(txt: str) -> QUrl:\n    \"\"\"Get a search engine URL for a text.\n\n    Args:\n        txt: Text to search for.\n\n    Return:\n        The search URL as a QUrl.\n    \"\"\"\n    log.url.debug(\"Finding search engine for {!r}\".format(txt))\n    engine, term = _parse_search_term(txt)\n    if not engine:\n        engine = 'DEFAULT'\n    if term:\n        template = config.val.url.searchengines[engine]\n        semiquoted_term = urllib.parse.quote(term)\n        quoted_term = urllib.parse.quote(term, safe='')\n        evaluated = template.format(semiquoted_term,\n                                    unquoted=term,\n                                    quoted=quoted_term,\n                                    semiquoted=semiquoted_term)\n        url = QUrl.fromUserInput(evaluated)\n    else:\n        url = QUrl.fromUserInput(config.val.url.searchengines[engine])\n        url.setPath(None)  # type: ignore[arg-type]\n        url.setFragment(None)  # type: ignore[arg-type]\n        url.setQuery(None)  # type: ignore[call-overload]\n    qtutils.ensure_valid(url)\n    return url\n\n\ndef _is_url_naive(urlstr: str) -> bool:\n    \"\"\"Naive check if given URL is really a URL.\n\n    Args:\n        urlstr: The URL to check for, as string.\n\n    Return:\n        True if the URL really is a URL, False otherwise.\n    \"\"\"\n    url = QUrl.fromUserInput(urlstr)\n    assert url.isValid()\n    host = url.host()\n\n    # Valid IPv4/IPv6 address. Qt converts things like \"23.42\" or \"1337\" or\n    # \"0xDEAD\" to IP addresses, which we don't like, so we check if the host\n    # from Qt is part of the input.\n    if (not utils.raises(ValueError, ipaddress.ip_address, host) and\n            host in urlstr):\n        return True\n\n    tld = r'\\.([^.0-9_-]+|xn--[a-z0-9-]+)$'\n    forbidden = r'[\\u0000-\\u002c\\u002f\\u003a-\\u0060\\u007b-\\u00b6]'\n    return bool(re.search(tld, host) and not re.search(forbidden, host))\n\n\ndef _is_url_dns(urlstr: str) -> bool:\n    \"\"\"Check if a URL is really a URL via DNS.\n\n    Args:\n        url: The URL to check for as a string.\n\n    Return:\n        True if the URL really is a URL, False otherwise.\n    \"\"\"\n    url = QUrl.fromUserInput(urlstr)\n    assert url.isValid()\n\n    if (utils.raises(ValueError, ipaddress.ip_address, urlstr) and\n            not QHostAddress(urlstr).isNull()):\n        log.url.debug(\"Bogus IP URL -> False\")\n        # Qt treats things like \"23.42\" or \"1337\" or \"0xDEAD\" as valid URLs\n        # which we don't want to.\n        return False\n\n    host = url.host()\n    if not host:\n        log.url.debug(\"URL has no host -> False\")\n        return False\n    log.url.debug(\"Doing DNS request for {}\".format(host))\n    info = QHostInfo.fromName(host)\n    return not info.error()\n\n\ndef fuzzy_url(urlstr: str,\n              cwd: str = None,\n              relative: bool = False,\n              do_search: bool = True,\n              force_search: bool = False) -> QUrl:\n    \"\"\"Get a QUrl based on a user input which is URL or search term.\n\n    Args:\n        urlstr: URL to load as a string.\n        cwd: The current working directory, or None.\n        relative: Whether to resolve relative files.\n        do_search: Whether to perform a search on non-URLs.\n        force_search: Whether to force a search even if the content can be\n                      interpreted as a URL or a path.\n\n    Return:\n        A target QUrl to a search page or the original URL.\n    \"\"\"\n    urlstr = urlstr.strip()\n    path = get_path_if_valid(urlstr, cwd=cwd, relative=relative,\n                             check_exists=True)\n\n    if not force_search and path is not None:\n        url = QUrl.fromLocalFile(path)\n    elif force_search or (do_search and not is_url(urlstr)):\n        # probably a search term\n        log.url.debug(\"URL is a fuzzy search term\")\n        try:\n            url = _get_search_url(urlstr)\n        except ValueError:  # invalid search engine\n            url = QUrl.fromUserInput(urlstr)\n    else:  # probably an address\n        log.url.debug(\"URL is a fuzzy address\")\n        url = QUrl.fromUserInput(urlstr)\n    log.url.debug(\"Converting fuzzy term {!r} to URL -> {}\".format(\n        urlstr, url.toDisplayString()))\n    ensure_valid(url)\n    return url\n\n\ndef _has_explicit_scheme(url: QUrl) -> bool:\n    \"\"\"Check if a url has an explicit scheme given.\n\n    Args:\n        url: The URL as QUrl.\n    \"\"\"\n    # Note that generic URI syntax actually would allow a second colon\n    # after the scheme delimiter. Since we don't know of any URIs\n    # using this and want to support e.g. searching for scoped C++\n    # symbols, we treat this as not a URI anyways.\n    return bool(url.isValid() and url.scheme() and\n                (url.host() or url.path()) and\n                not url.path().startswith(':'))\n\n\ndef is_special_url(url: QUrl) -> bool:\n    \"\"\"Return True if url is an about:... or other special URL.\n\n    Args:\n        url: The URL as QUrl.\n    \"\"\"\n    if not url.isValid():\n        return False\n    special_schemes = ('about', 'qute', 'file')\n    return url.scheme() in special_schemes\n\n\ndef is_url(urlstr: str) -> bool:\n    \"\"\"Check if url seems to be a valid URL.\n\n    Args:\n        urlstr: The URL as string.\n\n    Return:\n        True if it is a valid URL, False otherwise.\n    \"\"\"\n    autosearch = config.val.url.auto_search\n\n    log.url.debug(\"Checking if {!r} is a URL (autosearch={}).\".format(\n        urlstr, autosearch))\n\n    urlstr = urlstr.strip()\n    qurl = QUrl(urlstr)\n    qurl_userinput = QUrl.fromUserInput(urlstr)\n\n    if autosearch == 'never':\n        # no autosearch, so everything is a URL unless it has an explicit\n        # search engine.\n        try:\n            engine, _term = _parse_search_term(urlstr)\n        except ValueError:\n            return False\n        else:\n            return engine is None\n\n    if not qurl_userinput.isValid():\n        # This will also catch non-URLs containing spaces.\n        return False\n\n    if _has_explicit_scheme(qurl) and ' ' not in urlstr:\n        # URLs with explicit schemes are always URLs\n        log.url.debug(\"Contains explicit scheme\")\n        url = True\n    elif (autosearch == 'schemeless' and\n          (not _has_explicit_scheme(qurl) or ' ' in urlstr)):\n        # When autosearch=schemeless, URLs must contain schemes to be valid\n        log.url.debug(\"No explicit scheme in given URL, treating as non-URL\")\n        url = False\n    elif qurl_userinput.host() in ['localhost', '127.0.0.1', '::1']:\n        log.url.debug(\"Is localhost.\")\n        url = True\n    elif is_special_url(qurl):\n        # Special URLs are always URLs, even with autosearch=never\n        log.url.debug(\"Is a special URL.\")\n        url = True\n    elif autosearch == 'dns':\n        log.url.debug(\"Checking via DNS check\")\n        # We want to use QUrl.fromUserInput here, as the user might enter\n        # \"foo.de\" and that should be treated as URL here.\n        url = ' ' not in qurl_userinput.userName() and _is_url_dns(urlstr)\n    elif autosearch == 'naive':\n        log.url.debug(\"Checking via naive check\")\n        url = ' ' not in qurl_userinput.userName() and _is_url_naive(urlstr)\n    else:  # pragma: no cover\n        raise ValueError(\"Invalid autosearch value\")\n    log.url.debug(\"url = {}\".format(url))\n    return url\n\n\ndef ensure_valid(url: QUrl) -> None:\n    if not url.isValid():\n        raise InvalidUrlError(url)\n\n\ndef invalid_url_error(url: QUrl, action: str) -> None:\n    \"\"\"Display an error message for a URL.\n\n    Args:\n        action: The action which was interrupted by the error.\n    \"\"\"\n    if url.isValid():\n        raise ValueError(\"Calling invalid_url_error with valid URL {}\".format(\n            url.toDisplayString()))\n    errstring = get_errstring(\n        url, \"Trying to {} with invalid URL\".format(action))\n    message.error(errstring)\n\n\ndef raise_cmdexc_if_invalid(url: QUrl) -> None:\n    \"\"\"Check if the given QUrl is invalid, and if so, raise a CommandError.\"\"\"\n    try:\n        ensure_valid(url)\n    except InvalidUrlError as e:\n        raise cmdutils.CommandError(str(e))\n\n\ndef get_path_if_valid(pathstr: str,\n                      cwd: str = None,\n                      relative: bool = False,\n                      check_exists: bool = False) -> Optional[str]:\n    \"\"\"Check if path is a valid path.\n\n    Args:\n        pathstr: The path as string.\n        cwd: The current working directory, or None.\n        relative: Whether to resolve relative files.\n        check_exists: Whether to check if the file\n                      actually exists of filesystem.\n\n    Return:\n        The path if it is a valid path, None otherwise.\n    \"\"\"\n    pathstr = pathstr.strip()\n    log.url.debug(\"Checking if {!r} is a path\".format(pathstr))\n    expanded = os.path.expanduser(pathstr)\n\n    if os.path.isabs(expanded):\n        path: Optional[str] = expanded\n    elif relative and cwd:\n        path = os.path.join(cwd, expanded)\n    elif relative:\n        try:\n            path = os.path.abspath(expanded)\n        except OSError:\n            path = None\n    else:\n        path = None\n\n    if check_exists:\n        if path is not None:\n            try:\n                if os.path.exists(path):\n                    log.url.debug(\"URL is a local file\")\n                else:\n                    path = None\n            except UnicodeEncodeError:\n                log.url.debug(\n                    \"URL contains characters which are not present in the \"\n                    \"current locale\")\n                path = None\n\n    return path\n\n\ndef filename_from_url(url: QUrl, fallback: str = None) -> Optional[str]:\n    \"\"\"Get a suitable filename from a URL.\n\n    Args:\n        url: The URL to parse, as a QUrl.\n        fallback: Value to use if no name can be determined.\n\n    Return:\n        The suggested filename as a string, or None.\n    \"\"\"\n    if not url.isValid():\n        return fallback\n\n    if url.scheme().lower() == 'data':\n        mimetype, _encoding = mimetypes.guess_type(url.toString())\n        if not mimetype:\n            return fallback\n\n        ext = utils.mimetype_extension(mimetype) or ''\n        return 'download' + ext\n\n    pathname = posixpath.basename(url.path())\n    if pathname:\n        return pathname\n    elif url.host():\n        return url.host() + '.html'\n    else:\n        return fallback\n\n\nHostTupleType = Tuple[str, str, int]\n\n\ndef host_tuple(url: QUrl) -> HostTupleType:\n    \"\"\"Get a (scheme, host, port) tuple from a QUrl.\n\n    This is suitable to identify a connection, e.g. for SSL errors.\n    \"\"\"\n    ensure_valid(url)\n    scheme, host, port = url.scheme(), url.host(), url.port()\n    assert scheme\n    if not host:\n        raise ValueError(\"Got URL {} without host.\".format(\n            url.toDisplayString()))\n    if port == -1:\n        port_mapping = {\n            'http': 80,\n            'https': 443,\n            'ftp': 21,\n        }\n        try:\n            port = port_mapping[scheme]\n        except KeyError:\n            raise ValueError(\"Got URL {} with unknown port.\".format(\n                url.toDisplayString()))\n    return scheme, host, port\n\n\ndef widened_hostnames(hostname: Optional[str]) -> Iterator[str]:\n    \"\"\"Yield a hostname and all its parent domains.\n\n    Example:\n        a.b.c -> a.b.c, b.c, c\n\n    This is similar to repeatedly stripping the left-most label.\n    \"\"\"\n    if not hostname:\n        return\n\n    trailing_dot = hostname.endswith('.')\n    current = hostname[:-1] if trailing_dot else hostname\n\n    while current:\n        yield current + ('.' if trailing_dot else '')\n        dot_idx = current.find('.')\n        if dot_idx == -1:\n            break\n        current = current[dot_idx + 1:]\n\n\ndef get_errstring(url: QUrl, base: str = \"Invalid URL\") -> str:\n    \"\"\"Get an error string for a URL.\n\n    Args:\n        url: The URL as a QUrl.\n        base: The base error string.\n\n    Return:\n        A new string with url.errorString() is appended if available.\n    \"\"\"\n    url_error = url.errorString()\n    if url_error:\n        return base + \" - {}\".format(url_error)\n    else:\n        return base\n\n\ndef same_domain(url1: QUrl, url2: QUrl) -> bool:\n    \"\"\"Check if url1 and url2 belong to the same website.\n\n    This will use a \"public suffix list\" to determine what a \"top level domain\"\n    is. All further domains are ignored.\n\n    For example example.com and www.example.com are considered the same. but\n    example.co.uk and test.co.uk are not.\n\n    If the URL's schemes or ports are different, they are always treated as not equal.\n\n    Return:\n        True if the domains are the same, False otherwise.\n    \"\"\"\n    ensure_valid(url1)\n    ensure_valid(url2)\n\n    if url1.scheme() != url2.scheme():\n        return False\n    if url1.port() != url2.port():\n        return False\n\n    suffix1 = url1.topLevelDomain()\n    suffix2 = url2.topLevelDomain()\n    if not suffix1:\n        return url1.host() == url2.host()\n\n    if suffix1 != suffix2:\n        return False\n\n    domain1 = url1.host()[:-len(suffix1)].split('.')[-1]\n    domain2 = url2.host()[:-len(suffix2)].split('.')[-1]\n    return domain1 == domain2\n\n\ndef encoded_url(url: QUrl) -> str:\n    \"\"\"Return the fully encoded url as string.\n\n    Args:\n        url: The url to encode as QUrl.\n    \"\"\"\n    return url.toEncoded().data().decode('ascii')\n\n\ndef file_url(path: str) -> str:\n    \"\"\"Return a file:// url (as string) to the given local path.\n\n    Arguments:\n        path: The absolute path to the local file\n    \"\"\"\n    url = QUrl.fromLocalFile(path)\n    return url.toString(QUrl.FullyEncoded)  # type: ignore[arg-type]\n\n\ndef data_url(mimetype: str, data: bytes) -> QUrl:\n    \"\"\"Get a data: QUrl for the given data.\"\"\"\n    b64 = base64.b64encode(data).decode('ascii')\n    url = QUrl('data:{};base64,{}'.format(mimetype, b64))\n    qtutils.ensure_valid(url)\n    return url\n\n\ndef safe_display_string(qurl: QUrl) -> str:\n    \"\"\"Get a IDN-homograph phishing safe form of the given QUrl.\n\n    If we're dealing with a Punycode-encoded URL, this prepends the hostname in\n    its encoded form, to make sure those URLs are distinguishable.\n\n    See https://github.com/qutebrowser/qutebrowser/issues/2547\n    and https://bugreports.qt.io/browse/QTBUG-60365\n    \"\"\"\n    ensure_valid(qurl)\n\n    host = qurl.host(QUrl.FullyEncoded)\n    assert '..' not in host, qurl  # https://bugreports.qt.io/browse/QTBUG-60364\n\n    for part in host.split('.'):\n        url_host = qurl.host(QUrl.FullyDecoded)\n        if part.startswith('xn--') and host != url_host:\n            return '({}) {}'.format(host, qurl.toDisplayString())\n\n    return qurl.toDisplayString()\n\n\nclass InvalidProxyTypeError(Exception):\n\n    \"\"\"Error raised when proxy_from_url gets an unknown proxy type.\"\"\"\n\n    def __init__(self, typ: str) -> None:\n        super().__init__(\"Invalid proxy type {}!\".format(typ))\n\n\ndef proxy_from_url(url: QUrl) -> Union[QNetworkProxy, pac.PACFetcher]:\n    \"\"\"Create a QNetworkProxy from QUrl and a proxy type.\n\n    Args:\n        url: URL of a proxy (possibly with credentials).\n\n    Return:\n        New QNetworkProxy.\n    \"\"\"\n    ensure_valid(url)\n\n    scheme = url.scheme()\n    if scheme in ['pac+http', 'pac+https', 'pac+file']:\n        fetcher = pac.PACFetcher(url)\n        fetcher.fetch()\n        return fetcher\n\n    types = {\n        'http': QNetworkProxy.HttpProxy,\n        'socks': QNetworkProxy.Socks5Proxy,\n        'socks5': QNetworkProxy.Socks5Proxy,\n        'direct': QNetworkProxy.NoProxy,\n    }\n    if scheme not in types:\n        raise InvalidProxyTypeError(scheme)\n\n    proxy = QNetworkProxy(types[scheme], url.host())\n\n    if url.port() != -1:\n        proxy.setPort(url.port())\n    if url.userName():\n        proxy.setUser(url.userName())\n    if url.password():\n        proxy.setPassword(url.password())\n    return proxy\n\n\ndef parse_javascript_url(url: QUrl) -> str:\n    \"\"\"Get JavaScript source from the given URL.\n\n    See https://wiki.whatwg.org/wiki/URL_schemes#javascript:_URLs\n    and https://github.com/whatwg/url/issues/385\n    \"\"\"\n    ensure_valid(url)\n    if url.scheme() != 'javascript':\n        raise Error(\"Expected a javascript:... URL\")\n    if url.authority():\n        raise Error(\"URL contains unexpected components: {}\"\n                    .format(url.authority()))\n\n    urlstr = url.toString(QUrl.FullyEncoded)  # type: ignore[arg-type]\n    urlstr = urllib.parse.unquote(urlstr)\n\n    code = urlstr[len('javascript:'):]\n    if not code:\n        raise Error(\"Resulted in empty JavaScript code\")\n\n    return code\n",
+              "additions": 23,
+              "deletions": 1
+            }
+          ]
+        },
+        "agent": "gpt-codex",
+        "model": {
+          "providerID": "openai",
+          "modelID": "gpt-5.2"
+        }
+      },
+      "parts": [
+        {
+          "id": "prt_bfaaf7d16001NPoYDXGKTKxiQZ",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfaaf7d150015SCtS72o70PMGS",
+          "type": "text",
+          "text": "\"Read TASK.md for the task description. Fix the code to make all the tests pass. The test files and run command are in TASK.md.\"\n"
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_bfaaf7d3d001LScPH67i9agATX",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "assistant",
+        "time": {
+          "created": 1769437363517,
+          "completed": 1769437922524
+        },
+        "parentID": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "modelID": "gpt-5.2",
+        "providerID": "openai",
+        "mode": "gpt-codex",
+        "agent": "gpt-codex",
+        "path": {
+          "cwd": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+          "root": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 13852,
+          "output": 171,
+          "reasoning": 40,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_bfaaf7f3a0011FOvB93BTOghXx",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfaaf7d3d001LScPH67i9agATX",
+          "type": "step-start",
+          "snapshot": "ac68fec4510681d5231e5a43ca746d43c6f4812b"
+        },
+        {
+          "id": "prt_bfaaf80e8001FHn7wT8ufQ1s2E",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfaaf7d3d001LScPH67i9agATX",
+          "type": "reasoning",
+          "text": "",
+          "metadata": {
+            "openai": {
+              "itemId": "rs_06fd3c99ef35592b01697778b477608190a9d6edbc3996f9df",
+              "reasoningEncryptedContent": "gAAAAABpd3i1wEIM3QL5Ug6sGEQSLZRSLKTSXMaE3dvarEmobYq8DJkJmAyGthqogPgVDihvz27sOBzPAkW10HNsV7HDnjw5b7ibNUocBFtGicq7POnx4-t-2qoPFkDye-nABH6rLxo-HS7jHMb95HZEOxirDy9j0Lclx6jKVRRoePxr-VAjHDXtI9AoxP_UZGM3UlUDngpA8mBrZMNbUJLBBhsRgKEeTQKYgZ8cp0_8En8ag4eyczYjdmP-cTtsjy6yQLdPqVJTOhVmVlNl4fLO8M-4xs-kWN7kUyvHpwUB28Ar6LpkUx8w1lSDt30F4KIPbuY69K_5iN2R1vgfuRNNhdBmPtRxs7bd-iN6RCBLAkAgoZPMMuX9p_9s7NlCl_kpiVloCKGlrd2TgclhUE4fylMVbVrLDY98zTIXjU78OGId93z-hLuA6UUITZmL94rdNln3p7A3eg5MfeO_OxHhICDW5uTzxapa7xL3z1_6FlxsURNNKKUxm_N4ic7D2yOc8L-nI4cTCgnlDQeFQq8OSxIXZKn-g2nrYh6jt5PV8N6yvhayNfXAoswQyWVSa1kquq6aGhcgFT2qwRV54-fOD473DtaBkE0RI6snujKAP9sQwhJ7564tKV0QtX5GPnGz51Cd1J5ry5Dzl2-Xvw7gtPxtzgp0zGj-jNTkhnPdAiLwQxR23qkhf_gFoSOIfx8DK5dFDQZ5SY7naJaJ2vI1vySkIviZq2kM7B84XU5pZpIHKtAXph-q1OToX6VPMS1TEEh1CWf6kIT0PhTOa0ffDb1qvVujqdOlduwHKXxj3jsf_waoVNckH62hYnDN-2wlbA3mkSuVYV86V035pZEY_fNBEKNUaZGeYnePKv_YeAHhSLCMy5fYrPnTG3Q41dOlUJ8K3rdZcbhwfLC-IdWr7g9xilN28pHlWIpo4-3jGUCrq4Uvv8X8KAEM39wKShK2YQHvwuI3Be5HXXZGxwucexvNLVe8EfM6dbQ5_7Wm5gPA5wiULu8RmgXhPHVvkeYcfc7_JX2WhjGzMzrwTARBItba-pDUq11IgrAXFEvKhZJKnQiO970="
+            }
+          },
+          "time": {
+            "start": 1769437364456,
+            "end": 1769437365359
+          }
+        },
+        {
+          "id": "prt_bfaaf8470001jA61v6GFyYl1o4",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfaaf7d3d001LScPH67i9agATX",
+          "type": "text",
+          "text": "I’ll read `TASK.md`, then run the specified tests to reproduce the failures and patch the code accordingly.",
+          "time": {
+            "start": 1769437366031,
+            "end": 1769437366031
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "msg_06fd3c99ef35592b01697778b557988190805518b311fd0adb"
+            }
+          }
+        },
+        {
+          "id": "prt_bfaaf8710001TJFEwUmd096x8I",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfaaf7d3d001LScPH67i9agATX",
+          "type": "tool",
+          "callID": "call_EcdOBV19YjWi7s8s6bpqOCfC",
+          "tool": "task",
+          "state": {
+            "status": "completed",
+            "input": {
+              "description": "Explore task and failing tests",
+              "prompt": "Read TASK.md to find the failing tests/run command. Then run the test command, capture failures, locate the relevant code, implement the fix, and rerun tests until green. Return: (1) brief description of root cause, (2) files changed, (3) commands run and final test result. You may edit code as needed.",
+              "subagent_type": "explore"
+            },
+            "output": "1) Root cause\n- `qutebrowser.components.hostblock.HostBlocker._is_blocked` only checked exact hostname membership in the hosts blocklists, so blocking `example.com` didn’t match `sub.example.com`.\n- `qutebrowser.utils.urlutils` was missing a `widened_hostnames()` helper needed to iterate a hostname and its parent domains.\n\n2) Files changed\n- `/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/qutebrowser/components/hostblock.py`\n- `/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/qutebrowser/utils/urlutils.py`\n\n3) Commands run + final test result\n- `source .venv/bin/activate && QT_QPA_PLATFORM=offscreen pytest tests/unit/components/test_hostblock.py tests/unit/utils/test_urlutils.py tests/unit/config/test_configutils.py -v`\n- `source .venv/bin/activate && PYTHONPATH=\"$PWD\" QT_QPA_PLATFORM=offscreen pytest tests/unit/components/test_hostblock.py tests/unit/utils/test_urlutils.py tests/unit/config/test_configutils.py -v`\n- Final: `============================= 418 passed in 19.49s =============================`\n\n<task_metadata>\nsession_id: ses_4055070c6ffesQPQenPSn6enMx\n</task_metadata>",
+            "title": "Explore task and failing tests",
+            "metadata": {
+              "summary": [
+                {
+                  "id": "prt_bfaaf9770001zd6hrJlMDUEyq3",
+                  "tool": "read",
+                  "state": {
+                    "status": "completed",
+                    "title": "TASK.md"
+                  }
+                },
+                {
+                  "id": "prt_bfaafa7240011MXk86hujwSWWJ",
+                  "tool": "bash",
+                  "state": {
+                    "status": "completed",
+                    "title": "Run specified pytest unit tests"
+                  }
+                },
+                {
+                  "id": "prt_bfab06337001lFioy0EJw9QtB5",
+                  "tool": "read",
+                  "state": {
+                    "status": "error"
+                  }
+                },
+                {
+                  "id": "prt_bfab06e2100196RUoOThP1I2eH",
+                  "tool": "glob",
+                  "state": {
+                    "status": "completed",
+                    "title": ""
+                  }
+                },
+                {
+                  "id": "prt_bfab1c968001Jdt09GGjMBu1lH",
+                  "tool": "glob",
+                  "state": {
+                    "status": "completed",
+                    "title": ""
+                  }
+                },
+                {
+                  "id": "prt_bfab1eee10017xkPRuxfI9YQq9",
+                  "tool": "glob",
+                  "state": {
+                    "status": "completed",
+                    "title": ""
+                  }
+                },
+                {
+                  "id": "prt_bfab2058600136sTOli7dPkoFL",
+                  "tool": "grep",
+                  "state": {
+                    "status": "completed",
+                    "title": "init_implicit|_select_wrapper|PyQt5 already imported|machinery\\.py"
+                  }
+                },
+                {
+                  "id": "prt_bfab22661001oO92SlFwQiCUX3",
+                  "tool": "glob",
+                  "state": {
+                    "status": "completed",
+                    "title": ""
+                  }
+                },
+                {
+                  "id": "prt_bfab258ea001y33VuCf64uWbS1",
+                  "tool": "bash",
+                  "state": {
+                    "status": "completed",
+                    "title": "List top-level qutebrowser directory"
+                  }
+                },
+                {
+                  "id": "prt_bfab2858e0018kFj0hcagBKK4x",
+                  "tool": "read",
+                  "state": {
+                    "status": "completed",
+                    "title": "qutebrowser/qt.py"
+                  }
+                },
+                {
+                  "id": "prt_bfab2c288001GKrwvse7qg3Hpl",
+                  "tool": "bash",
+                  "state": {
+                    "status": "completed",
+                    "title": "Check for qutebrowser/qt directory"
+                  }
+                },
+                {
+                  "id": "prt_bfab2d529001PIs6sIUkU3a8My",
+                  "tool": "read",
+                  "state": {
+                    "status": "completed",
+                    "title": "tests/conftest.py"
+                  }
+                },
+                {
+                  "id": "prt_bfab2e2cf001JmruyH4tjs5s51",
+                  "tool": "read",
+                  "state": {
+                    "status": "completed",
+                    "title": "qutebrowser/utils/usertypes.py"
+                  }
+                },
+                {
+                  "id": "prt_bfab379a5001JJfAzlU27yPU61",
+                  "tool": "bash",
+                  "state": {
+                    "status": "completed",
+                    "title": "Run pytest with local PYTHONPATH"
+                  }
+                },
+                {
+                  "id": "prt_bfab560f1001vS1CgPetz476lI",
+                  "tool": "read",
+                  "state": {
+                    "status": "completed",
+                    "title": "../../../../../.local/share/opencode/tool-output/tool_bfab55237001d2v63cvju53qJS"
+                  }
+                },
+                {
+                  "id": "prt_bfab56efe001PBX9Sx7lVJF9Bl",
+                  "tool": "grep",
+                  "state": {
+                    "status": "completed",
+                    "title": "FAILED|ERROR|=+ short test summary"
+                  }
+                },
+                {
+                  "id": "prt_bfab585e80019691sERsOuU6Ah",
+                  "tool": "read",
+                  "state": {
+                    "status": "completed",
+                    "title": "../../../../../.local/share/opencode/tool-output/tool_bfab55237001d2v63cvju53qJS"
+                  }
+                },
+                {
+                  "id": "prt_bfab599b7001O9zsLbTE0Twjde",
+                  "tool": "read",
+                  "state": {
+                    "status": "completed",
+                    "title": "qutebrowser/utils/urlutils.py"
+                  }
+                },
+                {
+                  "id": "prt_bfab5db14001uUrG0eohA9ZrCR",
+                  "tool": "read",
+                  "state": {
+                    "status": "completed",
+                    "title": "qutebrowser/components/hostblock.py"
+                  }
+                },
+                {
+                  "id": "prt_bfab621010016tjTB8IXmKT6O2",
+                  "tool": "bash",
+                  "state": {
+                    "status": "completed",
+                    "title": "Quick python check before editing"
+                  }
+                },
+                {
+                  "id": "prt_bfab6def1001F78GDHJV9rGjiv",
+                  "tool": "bash",
+                  "state": {
+                    "status": "completed",
+                    "title": "Add widened_hostnames helper to urlutils"
+                  }
+                },
+                {
+                  "id": "prt_bfab71ef9001MJq9P8CZqpXOHk",
+                  "tool": "bash",
+                  "state": {
+                    "status": "completed",
+                    "title": "Patch urlutils.py to add widened_hostnames"
+                  }
+                },
+                {
+                  "id": "prt_bfab7580f0014p0li4Jpdh9S4P",
+                  "tool": "bash",
+                  "state": {
+                    "status": "completed",
+                    "title": "Patch hostblock to use widened_hostnames for subdomains"
+                  }
+                },
+                {
+                  "id": "prt_bfab7809b001MHRy36QVz6re4P",
+                  "tool": "bash",
+                  "state": {
+                    "status": "completed",
+                    "title": "Re-run unit tests after fixes"
+                  }
+                }
+              ],
+              "sessionId": "ses_4055070c6ffesQPQenPSn6enMx",
+              "model": {
+                "modelID": "gpt-5.2",
+                "providerID": "openai"
+              },
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437368120,
+              "end": 1769437922463
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_06fd3c99ef35592b01697778b607908190aaa67925eb38dc61"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab8049f001pUeMRpZm03Mefa",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfaaf7d3d001LScPH67i9agATX",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9",
+          "cost": 0,
+          "tokens": {
+            "input": 13852,
+            "output": 171,
+            "reasoning": 40,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          }
+        },
+        {
+          "id": "prt_bfab804db001CzcvyYycimOgBQ",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfaaf7d3d001LScPH67i9agATX",
+          "type": "patch",
+          "hash": "ac68fec4510681d5231e5a43ca746d43c6f4812b",
+          "files": [
+            "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/qutebrowser/components/hostblock.py",
+            "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/qutebrowser/utils/urlutils.py"
+          ]
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_bfab804de001ajGz8tP027GkBC",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "assistant",
+        "time": {
+          "created": 1769437922526,
+          "completed": 1769437930731
+        },
+        "parentID": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "modelID": "gpt-5.2",
+        "providerID": "openai",
+        "mode": "gpt-codex",
+        "agent": "gpt-codex",
+        "path": {
+          "cwd": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+          "root": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 400,
+          "output": 238,
+          "reasoning": 99,
+          "cache": {
+            "read": 6784,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_bfab8078b00122oovhrD29eFCw",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab804de001ajGz8tP027GkBC",
+          "type": "step-start",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9"
+        },
+        {
+          "id": "prt_bfab8099c001fUacTfjjNxpkH4",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab804de001ajGz8tP027GkBC",
+          "type": "reasoning",
+          "text": "",
+          "metadata": {
+            "openai": {
+              "itemId": "rs_06c5ac56c179b1520169777ae3be148197bcf51cec0bd3c859",
+              "reasoningEncryptedContent": "gAAAAABpd3rn35xJe-IOD2ixEl9iPQqkJH8LME6TswMSVdmzRSBpj9zT210C4nAK39xOKzlcJuDdI4eKnNiTTbojvnBJ-t90eXorKMFlUsII3jxmpF8TolYa7dCpLe1c_LDKAX_iTNuz__5SR1zbFMRri8INbnrIOdAayz73j-Fo2jnCG2vvi2WR7hJO7AgqIXPzJompDAqL6to-FeyG9_7uP2oh21t5OCFLaG1VF4U1jb2sn54g-oajNfdlQ4kERjWkw6rXEKB_ns0Ydx-tMuhE5nbldOXzf-DwmNeX1cj37ZHNQfWSPY1QQxcLd-vyCiGS744-_qJuHhtMoC9Gm5bXZHZFZSYVc60rrC8-Hg5ERYiEo5BpPONHmH0R2GMS-3yRqsmQbh_nWgBJRF76AhBCeF33NkPTVa7HRqAblZKCg_YIiC0ZL1TTx8efJHZeGsgrJ54IKHlI1bmypW7KgFQc7GteQnU-cVtkSmKH6alayDrYxhf11My5edMDIzwEamdr4z5vRHBFduf7NmcOAPpWjUyiTUzwYnU_ku8Itonp3_z54I5ENtqR3M1tPrSXzc1VpqwgvgFegq082LcCDGIKlaFPJVnFlwGbRVIu4CjLK260QvjtFPOJst3jUbLvl7gxTeIIcXnY3e9pOYRLbyYaMOc3W_yltDrcING0xmCWmza_uMXYqidBAvD76nlxxPjFyq18Dowl7POgoY2PeW3IcOYUfgp12uwk_druBqR98aUCmT2kxxPwHNg-gNbxeChDIdEM6mopvXNeKriW2TGuPrWZFPZ2U0bZ2euAiM_SwUlP6CqFRy7L_6izY1BxyXjZjdzQZhKRShW_Oh6PbXCVgojBRxAlcu2xegUck0-7F_sMoKFgqdNRf5-Q-0yx6LQ9nMejJQLk5P1UOTSY2F1oncdZN5JoD3q6iBwKhnWSPEC9WvmClwHbTDkQs1AFCfy9gN7d1Qdo2RWorv1wL8s_imnnU9ytFeU7F9hq95KbcqOCs59tQfz7Vhi54SmAdaQmgytApqA0hFcp4EC-6uYYXhr4LEbPd1F7W-tCLv-Cd_JIJXlE-ELlu3ZNK8wtPG3GpEDEC5QCQjnyJ6Q0bY5kNWRr94rStso65H1clLG0JTxlhlgD8afgKwM5ApUfCEka-fW2T4LEYEZOBUqaPH90Ke2bC8K6qYwfF6SdJf2UOlQ4rD7Z7ytvGFO71CLEroeR2XxU2mpfJfbNj1ScXxYE3uWnBbkAkeo0ZRArSj4_GJaOk8VK8oaiHwdHnywvKiywoesBYTIWx64PnmY3mmADKp_wnWadmx0LPgIMGMldkR9bqDuc2qAMU4zy1Nyj80uuW9Z22E3GOsW-Q4qUhmxAZpu79gMBXf_yE1EG-U8Obsu5mgUETHqZrfAgjq1nVPkUBXGq9uhnHBoxds6IoqrPxRyVZQPFbe37E757QylvN7I_Ct_H6fSO-q9icaBbo-o_5aNZcoYd9s_DVN4bN1wVWwP36XBMmimNGUNyBCdCU_kwxTw7uIQ="
+            }
+          },
+          "time": {
+            "start": 1769437923740,
+            "end": 1769437927279
+          }
+        },
+        {
+          "id": "prt_bfab81770001ZgOFLyeFhraGlg",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab804de001ajGz8tP027GkBC",
+          "type": "text",
+          "text": "I’m going to read `TASK.md`, run the listed pytest command, then patch the failing code and rerun tests.",
+          "time": {
+            "start": 1769437929056,
+            "end": 1769437929056
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "msg_06c5ac56c179b1520169777ae72e9481978b2a7aa366826ac7"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab81e61001klAqcqvDHf9waM",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab804de001ajGz8tP027GkBC",
+          "type": "tool",
+          "callID": "call_kFiN15nxLXqIDRQx7e2m9GvZ",
+          "tool": "read",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/TASK.md"
+            },
+            "output": "<file>\n00001| # SWE-bench Task: Host Blocking Subdomains\n00002| \n00003| ## Problem Statement\n00004| \n00005| Host blocking does not apply to subdomains when only the parent domain is listed.\n00006| \n00007| In the hosts-based blocking method, requests are only blocked if the exact request hostname matches an entry in either the dynamically loaded blocked hosts set or the config-defined blocked hosts. As a result, adding example.com to the blocklist does not block sub.example.com, a.b.example.com, etc.\n00008| \n00009| ## Current behavior\n00010| \n00011| With content.blocking.enabled turned on, and example.com present in the blocklist:\n00012| - https://example.com is blocked.\n00013| - https://sub.example.com and deeper subdomains are NOT blocked.\n00014| \n00015| ## Expected behavior\n00016| \n00017| - If a parent domain is blocked, all of its subdomains should also be blocked unless explicitly whitelisted.\n00018| - Blocking example.com should block example.com, sub.example.com, and a.b.example.com.\n00019| - Whitelist rules should take precedence: if a request URL is whitelisted, it must not be blocked.\n00020| \n00021| ## Test Files\n00022| \n00023| These tests must pass:\n00024| - tests/unit/components/test_hostblock.py\n00025| - tests/unit/config/test_configutils.py\n00026| - tests/unit/utils/test_urlutils.py\n00027| \n00028| ## Run Tests\n00029| \n00030| ```bash\n00031| source .venv/bin/activate\n00032| QT_QPA_PLATFORM=offscreen pytest tests/unit/components/test_hostblock.py tests/unit/utils/test_urlutils.py tests/unit/config/test_configutils.py -v\n00033| ```\n00034| \n\n(End of file - total 34 lines)\n</file>",
+            "title": "TASK.md",
+            "metadata": {
+              "preview": "# SWE-bench Task: Host Blocking Subdomains\n\n## Problem Statement\n\nHost blocking does not apply to subdomains when only the parent domain is listed.\n\nIn the hosts-based blocking method, requests are only blocked if the exact request hostname matches an entry in either the dynamically loaded blocked hosts set or the config-defined blocked hosts. As a result, adding example.com to the blocklist does not block sub.example.com, a.b.example.com, etc.\n\n## Current behavior\n\nWith content.blocking.enabled turned on, and example.com present in the blocklist:\n- https://example.com is blocked.\n- https://sub.example.com and deeper subdomains are NOT blocked.\n\n## Expected behavior\n\n- If a parent domain is blocked, all of its subdomains should also be blocked unless explicitly whitelisted.\n- Blocking example.com should block example.com, sub.example.com, and a.b.example.com.\n- Whitelist rules should take precedence: if a request URL is whitelisted, it must not be blocked.\n",
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437929999,
+              "end": 1769437930001
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_06c5ac56c179b1520169777ae90ef48197a4c56a5fd6817598"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab82210001G7jhDYLsgssuKQ",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab804de001ajGz8tP027GkBC",
+          "type": "tool",
+          "callID": "call_y0Xl3lIzawvJWyJNDuRtGxVc",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "pytest -q",
+              "description": "Run full pytest suite quickly"
+            },
+            "output": "zsh:1: command not found: pytest\n",
+            "title": "Run full pytest suite quickly",
+            "metadata": {
+              "output": "zsh:1: command not found: pytest\n",
+              "exit": 127,
+              "description": "Run full pytest suite quickly",
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437930598,
+              "end": 1769437930606
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_06c5ac56c179b1520169777ae9ffe48197aae3ea374e814cce"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab824a3001T0OaodNEtqwdfQ",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab804de001ajGz8tP027GkBC",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9",
+          "cost": 0,
+          "tokens": {
+            "input": 400,
+            "output": 238,
+            "reasoning": 99,
+            "cache": {
+              "read": 6784,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_bfab824ed001VPmVV1DQeZ9m7Q",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "assistant",
+        "time": {
+          "created": 1769437930733,
+          "completed": 1769437942107
+        },
+        "parentID": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "modelID": "gpt-5.2",
+        "providerID": "openai",
+        "mode": "gpt-codex",
+        "agent": "gpt-codex",
+        "path": {
+          "cwd": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+          "root": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 715,
+          "output": 95,
+          "reasoning": 27,
+          "cache": {
+            "read": 14336,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_bfab82638001iowXLJULlgf2wu",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab824ed001VPmVV1DQeZ9m7Q",
+          "type": "step-start",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9"
+        },
+        {
+          "id": "prt_bfab828250012RVAJeedwUa3Tf",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab824ed001VPmVV1DQeZ9m7Q",
+          "type": "reasoning",
+          "text": "",
+          "metadata": {
+            "openai": {
+              "itemId": "rs_022f5054ae43bede0169777aeb8f748197a22a397a412c3b2c",
+              "reasoningEncryptedContent": "gAAAAABpd3rs1kCZGL7ikpb1lVpuRdUPJiGFqv8a_a7F98ezLkqNJQM8i9okQOUhAOmNQ7AlTDSoQM3CkudLnKa_p1cXaU_-cWmYRr1ZiFgsD49r6zcwxtMwJPbJ9qRi9JQ7WsKXb0uh_BpcHubZgYByWtiQsGo-3_Wrl79zVxM5CRNGZ5GRtmQ6KDWETa2hVfbRnKRhzCiPNyJRzRtV1VoYyiYGAdqoaUpOQcWLTvKuihXEacCCdnS0sVmXAjJvm1Dd0agCjM1GVSB-HMslG3mqR6-8v0ZGZlI5tiYdqRqvUnb2qv-yjJ5E7hlVPpC55GHBioZ1FYYYtAJYrw0CMwTjyGSLIs3xwWCudlaGsQs_DKsTWO2xvyOAGcrJ2ff57zovaFUOydST_InHG-dGF1NHi4BD5x6ZOU2oVj3OQx4yvx8yIy_rl_uh736D9NiVe2ufJfS8QfEXmIP8C-XXumsSGwcotOfq-x14keKxeu6n4Wn2JylYhb2Zp5U4p6Dv9-kfkl8Nk0uoVg0dttTxPtrAaOnVU__-hlXb452GFxFv1Cw_mlrzUlU_o7VYIo09cnHk1o0JJocRp7BleyS6y1DKMrY1S1EQUEFpWBwLIQIGgr8pE2Z6lxDhl9xO4hjqxZT4kXdlUE-39OVCevSCsDeb1y58EKIdjS9hljsfKqaC6fddiRqjPQ59N8Kw2ZnJHn8RV10EJyPV7IcQzFZrOtMjj53TiBEi1aOVjEdWNjF0Asmzi6stwx7xkWpJRnyFnOskM6F-_ehNfZ9vXzHhhlrPjTXMa6dDiFgs72OlDU57CiPnzD_BKo1FP484InHIymqqxdtF7vJpZUmOBgDR_uGh-EkRWjtfEKwMmSBuZURo-a04g70eBcEDiiP3styYQn7f_0pFTCJKZfwUa_VUXjl-q1JoeP4L4quvsnzqSv9GL_zOTNkIMQP-vQXXbvxiXgaT_EeTNSVn"
+            }
+          },
+          "time": {
+            "start": 1769437931557,
+            "end": 1769437932442
+          }
+        },
+        {
+          "id": "prt_bfab82b9b001DJJxcPuNUr2roT",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab824ed001VPmVV1DQeZ9m7Q",
+          "type": "tool",
+          "callID": "call_HFlc1mIMOopwdswBR1UhfjT2",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "source .venv/bin/activate && QT_QPA_PLATFORM=offscreen pytest tests/unit/components/test_hostblock.py tests/unit/utils/test_urlutils.py tests/unit/config/test_configutils.py -q",
+              "description": "Run specified unit tests in venv"
+            },
+            "output": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/qutebrowser/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:331: PluggyTeardownRaisedWarning: A plugin raised an exception during an old-style hookwrapper teardown.\nPlugin: helpconfig, Hook: pytest_cmdline_parse\nConftestImportFailure: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html (from /Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/tests/conftest.py)\nFor more information see https://pluggy.readthedocs.io/en/stable/api_reference.html#pluggy.PluggyTeardownRaisedWarning\n  config = pluginmanager.hook.pytest_cmdline_parse(\nImportError while loading conftest '/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/tests/conftest.py'.\ntests/conftest.py:37: in <module>\n    from helpers.messagemock import message_mock\ntests/helpers/messagemock.py:28: in <module>\n    from qutebrowser.utils import usertypes, message\n../96b99780_parse_duration_opus-claude_20260126_092238_750cc445/qutebrowser/utils/usertypes.py:30: in <module>\n    from qutebrowser.utils import log, qtutils, utils\n../96b99780_parse_duration_opus-claude_20260126_092238_750cc445/qutebrowser/utils/qtutils.py:50: in <module>\n    from qutebrowser.utils import usertypes, utils\n../96b99780_parse_duration_opus-claude_20260126_092238_750cc445/qutebrowser/utils/utils.py:45: in <module>\n    import pkg_resources\n../../qutebrowser/.venv/lib/python3.10/site-packages/pkg_resources/__init__.py:98: in <module>\n    warnings.warn(\nE   DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html\n",
+            "title": "Run specified unit tests in venv",
+            "metadata": {
+              "output": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/qutebrowser/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:331: PluggyTeardownRaisedWarning: A plugin raised an exception during an old-style hookwrapper teardown.\nPlugin: helpconfig, Hook: pytest_cmdline_parse\nConftestImportFailure: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html (from /Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/tests/conftest.py)\nFor more information see https://pluggy.readthedocs.io/en/stable/api_reference.html#pluggy.PluggyTeardownRaisedWarning\n  config = pluginmanager.hook.pytest_cmdline_parse(\nImportError while loading conftest '/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/tests/conftest.py'.\ntests/conftest.py:37: in <module>\n    from helpers.messagemock import message_mock\ntests/helpers/messagemock.py:28: in <module>\n    from qutebrowser.utils import usertypes, message\n../96b99780_parse_duration_opus-claude_20260126_092238_750cc445/qutebrowser/utils/usertypes.py:30: in <module>\n    from qutebrowser.utils import log, qtutils, utils\n../96b99780_parse_duration_opus-claude_20260126_092238_750cc445/qutebrowser/utils/qtutils.py:50: in <module>\n    from qutebrowser.utils import usertypes, utils\n../96b99780_parse_duration_opus-claude_20260126_092238_750cc445/qutebrowser/utils/utils.py:45: in <module>\n    import pkg_resources\n../../qutebrowser/.venv/lib/python3.10/site-packages/pkg_resources/__init__.py:98: in <module>\n    warnings.warn(\nE   DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html\n",
+              "exit": 4,
+              "description": "Run specified unit tests in venv",
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437933538,
+              "end": 1769437941899
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_022f5054ae43bede0169777aec70d88197b1c29a693de7481a"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab8508c0014DmWlBlEvfxu9G",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab824ed001VPmVV1DQeZ9m7Q",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9",
+          "cost": 0,
+          "tokens": {
+            "input": 715,
+            "output": 95,
+            "reasoning": 27,
+            "cache": {
+              "read": 14336,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_bfab8515e001tlLcBdJpXnXk1z",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "assistant",
+        "time": {
+          "created": 1769437942110,
+          "completed": 1769437945123
+        },
+        "parentID": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "modelID": "gpt-5.2",
+        "providerID": "openai",
+        "mode": "gpt-codex",
+        "agent": "gpt-codex",
+        "path": {
+          "cwd": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+          "root": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 700,
+          "output": 119,
+          "reasoning": 48,
+          "cache": {
+            "read": 14976,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_bfab85275001Y17c82lmAMmzbp",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab8515e001tlLcBdJpXnXk1z",
+          "type": "step-start",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9"
+        },
+        {
+          "id": "prt_bfab854a2001IVIObz2asJQLE5",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab8515e001tlLcBdJpXnXk1z",
+          "type": "reasoning",
+          "text": "",
+          "metadata": {
+            "openai": {
+              "itemId": "rs_07a99571e525103e0169777af6f25c8194baf7b8d0a85c50e1",
+              "reasoningEncryptedContent": "gAAAAABpd3r4pOBkscPY0Mf-CRokstTxFZojIVnowoIURl2JcXwGUPHxSJRFQ8mk2WQmjX7AYq-uqI-Ij1cnOcMC7IrqvJyZaTUOlf-JEp8j0Y9LwyplZz50uUVLTbnNKv3JU8g8udy5jxRyvombQG60a_CMLR29vcJwIpPdtpQDSPMec9vxw50734cxPwfMv0B7gYtbQmBoHIfilCNz5wwuu_04x8vN0VNFX1EECCDl_Q5cKmhoQo5-53nhu8g_-Qnlar7SucISk7_psq_YEAzfwO-SJtIwMymFjXhFTa2yUTo4YauKbbr6Abs7Kx44116twQojAPSw3dD98g3njaY1XVVCoxR-YMur2JAcpfjUogW6upc-hDuEo__GFrJ-D-xoR45I91rgdlZTjTQUCEnBLruiHBGjlI5jDlZHPbHWQ71K4qdQxCCY7r_R1GI1yWl_FUcAIpT47LtBlRRY3xC_u0S6j3BMUsUq36EGRc-UvO105slGa7XkZpG6y-CGLugI6fLPA_pi7ayz3aKY9neNRKWvru39az2LGCG-nC3RmLe1xXYs1PO0BGsZUTBLUFJVPrC6uwACcUHihJtgEE7YEljveDJUDPwsPKZAa9iYyuI3KvwEXKIX6rAztr7DRYctugh4kYLgy9m2tK3W3bTl3lNYLtQonbrIZaFRVNgqZhck1dM7TgDCrhq14-OAxMs_JSx9lUDIZ19DXzyueijE39cMvLiHO0Mx-3Fo4JpCxER0itioH8_vRr9z7fySaN5qvw0KM3qWU9niYftlTvkiaqCShK9ipCoch81EOkEiieLK5MvoNn-dlOGeC-cB0rn9w4kLHHO0GnSA9NuFEOHEKBLsdq-YbnOU3Q0Ljf5dV7QkDE3LqYlEY-UtXJ62rcbn3J0g06TIsJKeJyUAsiU572mJ5Kgglj2CWZl1vsVLeDKNP3PwwF4r3_1jkw0z1Ch7BwdRXNpz-nQsl8KkYBMv1-f5L6pzSOnnB5JWsp9YqTV4279_rj8aQc8SvRqqFHR5saHOlNME2z3BFXLv76JPncWGrR5zNOPVvR7BDb_OXOOs5BkFM_svgrAKhK9qzUozpQgovLUdp0VMz7Eg1VqCcd3ewzs7Tw=="
+            }
+          },
+          "time": {
+            "start": 1769437942946,
+            "end": 1769437944020
+          }
+        },
+        {
+          "id": "prt_bfab858d5001fu84G2efevI0q6",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab8515e001tlLcBdJpXnXk1z",
+          "type": "tool",
+          "callID": "call_pT91R44HoQW3z5WO5dwmfFQh",
+          "tool": "read",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/qutebrowser/utils/utils.py"
+            },
+            "output": "<file>\n00001| # vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:\n00002| \n00003| # Copyright 2014-2021 Florian Bruhin (The Compiler) <mail@qutebrowser.org>\n00004| #\n00005| # This file is part of qutebrowser.\n00006| #\n00007| # qutebrowser is free software: you can redistribute it and/or modify\n00008| # it under the terms of the GNU General Public License as published by\n00009| # the Free Software Foundation, either version 3 of the License, or\n00010| # (at your option) any later version.\n00011| #\n00012| # qutebrowser is distributed in the hope that it will be useful,\n00013| # but WITHOUT ANY WARRANTY; without even the implied warranty of\n00014| # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n00015| # GNU General Public License for more details.\n00016| #\n00017| # You should have received a copy of the GNU General Public License\n00018| # along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.\n00019| \n00020| \"\"\"Other utilities which don't fit anywhere else.\"\"\"\n00021| \n00022| import os\n00023| import os.path\n00024| import io\n00025| import re\n00026| import sys\n00027| import enum\n00028| import json\n00029| import datetime\n00030| import traceback\n00031| import functools\n00032| import contextlib\n00033| import shlex\n00034| import mimetypes\n00035| from typing import (Any, Callable, IO, Iterator,\n00036|                     Optional, Sequence, Tuple, Type, Union,\n00037|                     TypeVar, TYPE_CHECKING)\n00038| try:\n00039|     # Protocol was added in Python 3.8\n00040|     from typing import Protocol\n00041| except ImportError:  # pragma: no cover\n00042|     if not TYPE_CHECKING:\n00043|         class Protocol:\n00044| \n00045|             \"\"\"Empty stub at runtime.\"\"\"\n00046| \n00047| from PyQt5.QtCore import QUrl, QVersionNumber, QRect\n00048| from PyQt5.QtGui import QClipboard, QDesktopServices\n00049| from PyQt5.QtWidgets import QApplication\n00050| \n00051| import yaml\n00052| try:\n00053|     from yaml import (CSafeLoader as YamlLoader,\n00054|                       CSafeDumper as YamlDumper)\n00055|     YAML_C_EXT = True\n00056| except ImportError:  # pragma: no cover\n00057|     from yaml import (SafeLoader as YamlLoader,  # type: ignore[misc]\n00058|                       SafeDumper as YamlDumper)\n00059|     YAML_C_EXT = False\n00060| \n00061| from qutebrowser.utils import log\n00062| \n00063| fake_clipboard = None\n00064| log_clipboard = False\n00065| \n00066| is_mac = sys.platform.startswith('darwin')\n00067| is_linux = sys.platform.startswith('linux')\n00068| is_windows = sys.platform.startswith('win')\n00069| is_posix = os.name == 'posix'\n00070| \n00071| _C = TypeVar(\"_C\", bound=\"Comparable\")\n00072| \n00073| \n00074| class Comparable(Protocol):\n00075| \n00076|     \"\"\"Protocol for a \"comparable\" object.\"\"\"\n00077| \n00078|     def __lt__(self: _C, other: _C) -> bool:\n00079|         ...\n00080| \n00081|     def __ge__(self: _C, other: _C) -> bool:\n00082|         ...\n00083| \n00084| \n00085| class VersionNumber:\n00086| \n00087|     \"\"\"A representation of a version number.\"\"\"\n00088| \n00089|     def __init__(self, *args: int) -> None:\n00090|         self._ver = QVersionNumber(args)  # not *args, to support >3 components\n00091|         if self._ver.isNull():\n00092|             raise ValueError(\"Can't construct a null version\")\n00093| \n00094|         normalized = self._ver.normalized()\n00095|         if normalized != self._ver:\n00096|             raise ValueError(\n00097|                 f\"Refusing to construct non-normalized version from {args} \"\n00098|                 f\"(normalized: {tuple(normalized.segments())}).\")\n00099| \n00100|         self.major = self._ver.majorVersion()\n00101|         self.minor = self._ver.minorVersion()\n00102|         self.patch = self._ver.microVersion()\n00103|         self.segments = self._ver.segments()\n00104| \n00105|     def __str__(self) -> str:\n00106|         return \".\".join(str(s) for s in self.segments)\n00107| \n00108|     def __repr__(self) -> str:\n00109|         args = \", \".join(str(s) for s in self.segments)\n00110|         return f'VersionNumber({args})'\n00111| \n00112|     def strip_patch(self) -> 'VersionNumber':\n00113|         \"\"\"Get a new VersionNumber with the patch version removed.\"\"\"\n00114|         return VersionNumber(*self.segments[:2])\n00115| \n00116|     @classmethod\n00117|     def parse(cls, s: str) -> 'VersionNumber':\n00118|         \"\"\"Parse a version number from a string.\"\"\"\n00119|         ver, _suffix = QVersionNumber.fromString(s)\n00120|         # FIXME: Should we support a suffix?\n00121| \n00122|         if ver.isNull():\n00123|             raise ValueError(f\"Failed to parse {s}\")\n00124| \n00125|         return cls(*ver.normalized().segments())\n00126| \n00127|     def __hash__(self) -> int:\n00128|         return hash(self._ver)\n00129| \n00130|     def __eq__(self, other: object) -> bool:\n00131|         if not isinstance(other, VersionNumber):\n00132|             return NotImplemented\n00133|         return self._ver == other._ver\n00134| \n00135|     def __ne__(self, other: object) -> bool:\n00136|         if not isinstance(other, VersionNumber):\n00137|             return NotImplemented\n00138|         return self._ver != other._ver\n00139| \n00140|     def __ge__(self, other: 'VersionNumber') -> bool:\n00141|         return self._ver >= other._ver  # type: ignore[operator]\n00142| \n00143|     def __gt__(self, other: 'VersionNumber') -> bool:\n00144|         return self._ver > other._ver  # type: ignore[operator]\n00145| \n00146|     def __le__(self, other: 'VersionNumber') -> bool:\n00147|         return self._ver <= other._ver  # type: ignore[operator]\n00148| \n00149|     def __lt__(self, other: 'VersionNumber') -> bool:\n00150|         return self._ver < other._ver  # type: ignore[operator]\n00151| \n00152| \n00153| class Unreachable(Exception):\n00154| \n00155|     \"\"\"Raised when there was unreachable code.\"\"\"\n00156| \n00157| \n00158| class ClipboardError(Exception):\n00159| \n00160|     \"\"\"Raised if the clipboard contents are unavailable for some reason.\"\"\"\n00161| \n00162| \n00163| class SelectionUnsupportedError(ClipboardError):\n00164| \n00165|     \"\"\"Raised if [gs]et_clipboard is used and selection=True is unsupported.\"\"\"\n00166| \n00167|     def __init__(self) -> None:\n00168|         super().__init__(\"Primary selection is not supported on this \"\n00169|                          \"platform!\")\n00170| \n00171| \n00172| class ClipboardEmptyError(ClipboardError):\n00173| \n00174|     \"\"\"Raised if get_clipboard is used and the clipboard is empty.\"\"\"\n00175| \n00176| \n00177| def elide(text: str, length: int) -> str:\n00178|     \"\"\"Elide text so it uses a maximum of length chars.\"\"\"\n00179|     if length < 1:\n00180|         raise ValueError(\"length must be >= 1!\")\n00181|     if len(text) <= length:\n00182|         return text\n00183|     else:\n00184|         return text[:length - 1] + '\\u2026'\n00185| \n00186| \n00187| def elide_filename(filename: str, length: int) -> str:\n00188|     \"\"\"Elide a filename to the given length.\n00189| \n00190|     The difference to the elide() is that the text is removed from\n00191|     the middle instead of from the end. This preserves file name extensions.\n00192|     Additionally, standard ASCII dots are used (\"...\") instead of the unicode\n00193|     \"…\" (U+2026) so it works regardless of the filesystem encoding.\n00194| \n00195|     This function does not handle path separators.\n00196| \n00197|     Args:\n00198|         filename: The filename to elide.\n00199|         length: The maximum length of the filename, must be at least 3.\n00200| \n00201|     Return:\n00202|         The elided filename.\n00203|     \"\"\"\n00204|     elidestr = '...'\n00205|     if length < len(elidestr):\n00206|         raise ValueError('length must be greater or equal to 3')\n00207|     if len(filename) <= length:\n00208|         return filename\n00209|     # Account for '...'\n00210|     length -= len(elidestr)\n00211|     left = length // 2\n00212|     right = length - left\n00213|     if right == 0:\n00214|         return filename[:left] + elidestr\n00215|     else:\n00216|         return filename[:left] + elidestr + filename[-right:]\n00217| \n00218| \n00219| def compact_text(text: str, elidelength: int = None) -> str:\n00220|     \"\"\"Remove leading whitespace and newlines from a text and maybe elide it.\n00221| \n00222|     Args:\n00223|         text: The text to compact.\n00224|         elidelength: To how many chars to elide.\n00225|     \"\"\"\n00226|     lines = []\n00227|     for line in text.splitlines():\n00228|         lines.append(line.strip())\n00229|     out = ''.join(lines)\n00230|     if elidelength is not None:\n00231|         out = elide(out, elidelength)\n00232|     return out\n00233| \n00234| \n00235| def format_seconds(total_seconds: int) -> str:\n00236|     \"\"\"Format a count of seconds to get a [H:]M:SS string.\"\"\"\n00237|     prefix = '-' if total_seconds < 0 else ''\n00238|     hours, rem = divmod(abs(round(total_seconds)), 3600)\n00239|     minutes, seconds = divmod(rem, 60)\n00240|     chunks = []\n00241|     if hours:\n00242|         chunks.append(str(hours))\n00243|         min_format = '{:02}'\n00244|     else:\n00245|         min_format = '{}'\n00246|     chunks.append(min_format.format(minutes))\n00247|     chunks.append('{:02}'.format(seconds))\n00248|     return prefix + ':'.join(chunks)\n00249| \n00250| \n00251| def format_size(size: Optional[float], base: int = 1024, suffix: str = '') -> str:\n00252|     \"\"\"Format a byte size so it's human readable.\n00253| \n00254|     Inspired by https://stackoverflow.com/q/1094841\n00255|     \"\"\"\n00256|     prefixes = ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']\n00257|     if size is None:\n00258|         return '?.??' + suffix\n00259|     for p in prefixes:\n00260|         if -base < size < base:\n00261|             return '{:.02f}{}{}'.format(size, p, suffix)\n00262|         size /= base\n00263|     return '{:.02f}{}{}'.format(size, prefixes[-1], suffix)\n00264| \n00265| \n00266| class FakeIOStream(io.TextIOBase):\n00267| \n00268|     \"\"\"A fake file-like stream which calls a function for write-calls.\"\"\"\n00269| \n00270|     def __init__(self, write_func: Callable[[str], int]) -> None:\n00271|         super().__init__()\n00272|         self.write = write_func  # type: ignore[assignment]\n00273| \n00274| \n00275| @contextlib.contextmanager\n00276| def fake_io(write_func: Callable[[str], int]) -> Iterator[None]:\n00277|     \"\"\"Run code with stdout and stderr replaced by FakeIOStreams.\n00278| \n00279|     Args:\n00280|         write_func: The function to call when write is called.\n00281|     \"\"\"\n00282|     old_stdout = sys.stdout\n00283|     old_stderr = sys.stderr\n00284|     fake_stderr = FakeIOStream(write_func)\n00285|     fake_stdout = FakeIOStream(write_func)\n00286|     sys.stderr = fake_stderr  # type: ignore[assignment]\n00287|     sys.stdout = fake_stdout  # type: ignore[assignment]\n00288|     try:\n00289|         yield\n00290|     finally:\n00291|         # If the code we did run did change sys.stdout/sys.stderr, we leave it\n00292|         # unchanged. Otherwise, we reset it.\n00293|         if sys.stdout is fake_stdout:  # type: ignore[comparison-overlap]\n00294|             sys.stdout = old_stdout\n00295|         if sys.stderr is fake_stderr:  # type: ignore[comparison-overlap]\n00296|             sys.stderr = old_stderr\n00297| \n00298| \n00299| @contextlib.contextmanager\n00300| def disabled_excepthook() -> Iterator[None]:\n00301|     \"\"\"Run code with the exception hook temporarily disabled.\"\"\"\n00302|     old_excepthook = sys.excepthook\n00303|     sys.excepthook = sys.__excepthook__\n00304|     try:\n00305|         yield\n00306|     finally:\n00307|         # If the code we did run did change sys.excepthook, we leave it\n00308|         # unchanged. Otherwise, we reset it.\n00309|         if sys.excepthook is sys.__excepthook__:\n00310|             sys.excepthook = old_excepthook\n00311| \n00312| \n00313| class prevent_exceptions:  # noqa: N801,N806 pylint: disable=invalid-name\n00314| \n00315|     \"\"\"Decorator to ignore and log exceptions.\n00316| \n00317|     This needs to be used for some places where PyQt segfaults on exceptions or\n00318|     silently ignores them.\n00319| \n00320|     We used to re-raise the exception with a single-shot QTimer in a similar\n00321|     case, but that lead to a strange problem with a KeyError with some random\n00322|     jinja template stuff as content. For now, we only log it, so it doesn't\n00323|     pass 100% silently.\n00324| \n00325|     This could also be a function, but as a class (with a \"wrong\" name) it's\n00326|     much cleaner to implement.\n00327| \n00328|     Attributes:\n00329|         _retval: The value to return in case of an exception.\n00330|         _predicate: The condition which needs to be True to prevent exceptions\n00331|     \"\"\"\n00332| \n00333|     def __init__(self, retval: Any, predicate: bool = True) -> None:\n00334|         \"\"\"Save decorator arguments.\n00335| \n00336|         Gets called on parse-time with the decorator arguments.\n00337| \n00338|         Args:\n00339|             See class attributes.\n00340|         \"\"\"\n00341|         self._retval = retval\n00342|         self._predicate = predicate\n00343| \n00344|     def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:\n00345|         \"\"\"Called when a function should be decorated.\n00346| \n00347|         Args:\n00348|             func: The function to be decorated.\n00349| \n00350|         Return:\n00351|             The decorated function.\n00352|         \"\"\"\n00353|         if not self._predicate:\n00354|             return func\n00355| \n00356|         retval = self._retval\n00357| \n00358|         @functools.wraps(func)\n00359|         def wrapper(*args: Any, **kwargs: Any) -> Any:\n00360|             \"\"\"Call the original function.\"\"\"\n00361|             try:\n00362|                 return func(*args, **kwargs)\n00363|             except BaseException:\n00364|                 log.misc.exception(\"Error in {}\".format(qualname(func)))\n00365|                 return retval\n00366| \n00367|         return wrapper\n00368| \n00369| \n00370| def is_enum(obj: Any) -> bool:\n00371|     \"\"\"Check if a given object is an enum.\"\"\"\n00372|     try:\n00373|         return issubclass(obj, enum.Enum)\n00374|     except TypeError:\n00375|         return False\n00376| \n00377| \n00378| def pyenum_str(value: enum.Enum) -> str:\n00379|     \"\"\"Get a string representation of a Python enum value.\n00380| \n00381|     This will have the form of \"EnumType.membername\", which is the default string\n00382|     representation for Python up to 3.10. Unfortunately, that changes with Python 3.10:\n00383|     https://bugs.python.org/issue40066\n00384|     \"\"\"\n00385|     if sys.version_info[:2] >= (3, 10):\n00386|         return repr(value)\n00387|     return str(value)\n00388| \n00389| \n00390| def get_repr(obj: Any, constructor: bool = False, **attrs: Any) -> str:\n00391|     \"\"\"Get a suitable __repr__ string for an object.\n00392| \n00393|     Args:\n00394|         obj: The object to get a repr for.\n00395|         constructor: If True, show the Foo(one=1, two=2) form instead of\n00396|                      <Foo one=1 two=2>.\n00397|         attrs: The attributes to add.\n00398|     \"\"\"\n00399|     cls = qualname(obj.__class__)\n00400|     parts = []\n00401|     items = sorted(attrs.items())\n00402| \n00403|     for name, val in items:\n00404|         if isinstance(val, enum.Enum):\n00405|             s = pyenum_str(val)\n00406|         else:\n00407|             s = repr(val)\n00408|         parts.append(f'{name}={s}')\n00409| \n00410|     if constructor:\n00411|         return '{}({})'.format(cls, ', '.join(parts))\n00412|     else:\n00413|         if parts:\n00414|             return '<{} {}>'.format(cls, ' '.join(parts))\n00415|         else:\n00416|             return '<{}>'.format(cls)\n00417| \n00418| \n00419| def qualname(obj: Any) -> str:\n00420|     \"\"\"Get the fully qualified name of an object.\n00421| \n00422|     Based on twisted.python.reflect.fullyQualifiedName.\n00423| \n00424|     Should work with:\n00425|         - functools.partial objects\n00426|         - functions\n00427|         - classes\n00428|         - methods\n00429|         - modules\n00430|     \"\"\"\n00431|     if isinstance(obj, functools.partial):\n00432|         obj = obj.func\n00433| \n00434|     if hasattr(obj, '__module__'):\n00435|         prefix = '{}.'.format(obj.__module__)\n00436|     else:\n00437|         prefix = ''\n00438| \n00439|     if hasattr(obj, '__qualname__'):\n00440|         return '{}{}'.format(prefix, obj.__qualname__)\n00441|     elif hasattr(obj, '__name__'):\n00442|         return '{}{}'.format(prefix, obj.__name__)\n00443|     else:\n00444|         return repr(obj)\n00445| \n00446| \n00447| _ExceptionType = Union[Type[BaseException], Tuple[Type[BaseException]]]\n00448| \n00449| \n00450| def raises(exc: _ExceptionType, func: Callable[..., Any], *args: Any) -> bool:\n00451|     \"\"\"Check if a function raises a given exception.\n00452| \n00453|     Args:\n00454|         exc: A single exception or an iterable of exceptions.\n00455|         func: A function to call.\n00456|         *args: The arguments to pass to the function.\n00457| \n00458|     Returns:\n00459|         True if the exception was raised, False otherwise.\n00460|     \"\"\"\n00461|     try:\n00462|         func(*args)\n00463|     except exc:\n00464|         return True\n00465|     else:\n00466|         return False\n00467| \n00468| \n00469| def force_encoding(text: str, encoding: str) -> str:\n00470|     \"\"\"Make sure a given text is encodable with the given encoding.\n00471| \n00472|     This replaces all chars not encodable with question marks.\n00473|     \"\"\"\n00474|     return text.encode(encoding, errors='replace').decode(encoding)\n00475| \n00476| \n00477| def sanitize_filename(name: str,\n00478|                       replacement: Optional[str] = '_',\n00479|                       shorten: bool = False) -> str:\n00480|     \"\"\"Replace invalid filename characters.\n00481| \n00482|     Note: This should be used for the basename, as it also removes the path\n00483|     separator.\n00484| \n00485|     Args:\n00486|         name: The filename.\n00487|         replacement: The replacement character (or None).\n00488|         shorten: Shorten the filename if it's too long for the filesystem.\n00489|     \"\"\"\n00490|     if replacement is None:\n00491|         replacement = ''\n00492| \n00493|     # Remove chars which can't be encoded in the filename encoding.\n00494|     # See https://github.com/qutebrowser/qutebrowser/issues/427\n00495|     encoding = sys.getfilesystemencoding()\n00496|     name = force_encoding(name, encoding)\n00497| \n00498|     # See also\n00499|     # https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words\n00500|     if is_windows:\n00501|         bad_chars = '\\\\/:*?\"<>|'\n00502|     elif is_mac:\n00503|         # Colons can be confusing in finder https://superuser.com/a/326627\n00504|         bad_chars = '/:'\n00505|     else:\n00506|         bad_chars = '/'\n00507| \n00508|     for bad_char in bad_chars:\n00509|         name = name.replace(bad_char, replacement)\n00510| \n00511|     if not shorten:\n00512|         return name\n00513| \n00514|     # Truncate the filename if it's too long.\n00515|     # Most filesystems have a maximum filename length of 255 bytes:\n00516|     # https://en.wikipedia.org/wiki/Comparison_of_file_systems#Limits\n00517|     # We also want to keep some space for QtWebEngine's \".download\" suffix, as\n00518|     # well as deduplication counters.\n00519|     max_bytes = 255 - len(\"(123).download\")\n00520|     root, ext = os.path.splitext(name)\n00521|     root = root[:max_bytes - len(ext)]\n00522|     excess = len(os.fsencode(root + ext)) - max_bytes\n00523| \n00524|     while excess > 0 and root:\n00525|         # Max 4 bytes per character is assumed.\n00526|         # Integer division floors to -∞, not to 0.\n00527|         root = root[:(-excess // 4)]\n00528|         excess = len(os.fsencode(root + ext)) - max_bytes\n00529| \n00530|     if not root:\n00531|         # Trimming the root is not enough. We must trim the extension.\n00532|         # We leave one character in the root, so that the filename\n00533|         # doesn't start with a dot, which makes the file hidden.\n00534|         root = name[0]\n00535|         excess = len(os.fsencode(root + ext)) - max_bytes\n00536|         while excess > 0 and ext:\n00537|             ext = ext[:(-excess // 4)]\n00538|             excess = len(os.fsencode(root + ext)) - max_bytes\n00539| \n00540|         assert ext, name\n00541| \n00542|     name = root + ext\n00543| \n00544|     return name\n00545| \n00546| \n00547| def set_clipboard(data: str, selection: bool = False) -> None:\n00548|     \"\"\"Set the clipboard to some given data.\"\"\"\n00549|     global fake_clipboard\n00550|     if selection and not supports_selection():\n00551|         raise SelectionUnsupportedError\n00552|     if log_clipboard:\n00553|         what = 'primary selection' if selection else 'clipboard'\n00554|         log.misc.debug(\"Setting fake {}: {}\".format(what, json.dumps(data)))\n00555|         fake_clipboard = data\n00556|     else:\n00557|         mode = QClipboard.Selection if selection else QClipboard.Clipboard\n00558|         QApplication.clipboard().setText(data, mode=mode)\n00559| \n00560| \n00561| def get_clipboard(selection: bool = False, fallback: bool = False) -> str:\n00562|     \"\"\"Get data from the clipboard.\n00563| \n00564|     Args:\n00565|         selection: Use the primary selection.\n00566|         fallback: Fall back to the clipboard if primary selection is\n00567|                   unavailable.\n00568|     \"\"\"\n00569|     global fake_clipboard\n00570|     if fallback and not selection:\n00571|         raise ValueError(\"fallback given without selection!\")\n00572| \n00573|     if selection and not supports_selection():\n00574|         if fallback:\n00575|             selection = False\n00576|         else:\n00577|             raise SelectionUnsupportedError\n00578| \n00579|     if fake_clipboard is not None:\n00580|         data = fake_clipboard\n00581|         fake_clipboard = None\n00582|     else:\n00583|         mode = QClipboard.Selection if selection else QClipboard.Clipboard\n00584|         data = QApplication.clipboard().text(mode=mode)\n00585| \n00586|     target = \"Primary selection\" if selection else \"Clipboard\"\n00587|     if not data.strip():\n00588|         raise ClipboardEmptyError(\"{} is empty.\".format(target))\n00589|     log.misc.debug(\"{} contained: {!r}\".format(target, data))\n00590| \n00591|     return data\n00592| \n00593| \n00594| def supports_selection() -> bool:\n00595|     \"\"\"Check if the OS supports primary selection.\"\"\"\n00596|     return QApplication.clipboard().supportsSelection()\n00597| \n00598| \n00599| def open_file(filename: str, cmdline: str = None) -> None:\n00600|     \"\"\"Open the given file.\n00601| \n00602|     If cmdline is not given, downloads.open_dispatcher is used.\n00603|     If open_dispatcher is unset, the system's default application is used.\n00604| \n00605|     Args:\n00606|         filename: The filename to open.\n00607|         cmdline: The command to use as string. A `{}` is expanded to the\n00608|                  filename. None means to use the system's default application\n00609|                  or `downloads.open_dispatcher` if set. If no `{}` is found,\n00610|                  the filename is appended to the cmdline.\n00611|     \"\"\"\n00612|     # Import late to avoid circular imports:\n00613|     # - usertypes -> utils -> guiprocess -> message -> usertypes\n00614|     # - usertypes -> utils -> config -> configdata -> configtypes ->\n00615|     #   cmdutils -> command -> message -> usertypes\n00616|     from qutebrowser.config import config\n00617|     from qutebrowser.misc import guiprocess\n00618|     from qutebrowser.utils import version, message\n00619| \n00620|     # the default program to open downloads with - will be empty string\n00621|     # if we want to use the default\n00622|     override = config.val.downloads.open_dispatcher\n00623| \n00624|     if version.is_flatpak():\n00625|         if cmdline:\n00626|             message.error(\"Cannot spawn download dispatcher from sandbox\")\n00627|             return\n00628|         if override:\n00629|             message.warning(\"Ignoring download dispatcher from config in \"\n00630|                             \"sandbox environment\")\n00631|             override = None\n00632| \n00633|     # precedence order: cmdline > downloads.open_dispatcher > openUrl\n00634| \n00635|     if cmdline is None and not override:\n00636|         log.misc.debug(\"Opening {} with the system application\"\n00637|                        .format(filename))\n00638|         url = QUrl.fromLocalFile(filename)\n00639|         QDesktopServices.openUrl(url)\n00640|         return\n00641| \n00642|     if cmdline is None and override:\n00643|         cmdline = override\n00644| \n00645|     assert cmdline is not None\n00646| \n00647|     cmd, *args = shlex.split(cmdline)\n00648|     args = [arg.replace('{}', filename) for arg in args]\n00649|     if '{}' not in cmdline:\n00650|         args.append(filename)\n00651|     log.misc.debug(\"Opening {} with {}\"\n00652|                    .format(filename, [cmd] + args))\n00653|     proc = guiprocess.GUIProcess(what='open-file')\n00654|     proc.start_detached(cmd, args)\n00655| \n00656| \n00657| def unused(_arg: Any) -> None:\n00658|     \"\"\"Function which does nothing to avoid pylint complaining.\"\"\"\n00659| \n00660| \n00661| def expand_windows_drive(path: str) -> str:\n00662|     r\"\"\"Expand a drive-path like E: into E:\\.\n00663| \n00664|     Does nothing for other paths.\n00665| \n00666|     Args:\n00667|         path: The path to expand.\n00668|     \"\"\"\n00669|     # Usually, \"E:\" on Windows refers to the current working directory on drive\n00670|     # E:\\. The correct way to specifify drive E: is \"E:\\\", but most users\n00671|     # probably don't use the \"multiple working directories\" feature and expect\n00672|     # \"E:\" and \"E:\\\" to be equal.\n00673|     if re.fullmatch(r'[A-Z]:', path, re.IGNORECASE):\n00674|         return path + \"\\\\\"\n00675|     else:\n00676|         return path\n00677| \n00678| \n00679| def yaml_load(f: Union[str, IO[str]]) -> Any:\n00680|     \"\"\"Wrapper over yaml.load using the C loader if possible.\"\"\"\n00681|     start = datetime.datetime.now()\n00682| \n00683|     # WORKAROUND for https://github.com/yaml/pyyaml/pull/181\n00684|     with log.py_warning_filter(\n00685|             category=DeprecationWarning,\n00686|             message=r\"Using or importing the ABCs from 'collections' instead \"\n00687|             r\"of from 'collections\\.abc' is deprecated.*\"):\n00688|         try:\n00689|             data = yaml.load(f, Loader=YamlLoader)\n00690|         except ValueError as e:\n00691|             if str(e).startswith('could not convert string to float'):\n00692|                 # WORKAROUND for https://github.com/yaml/pyyaml/issues/168\n00693|                 raise yaml.YAMLError(e)\n00694|             raise  # pragma: no cover\n00695| \n00696|     end = datetime.datetime.now()\n00697| \n00698|     delta = (end - start).total_seconds()\n00699|     deadline = 10 if 'CI' in os.environ else 2\n00700|     if delta > deadline:  # pragma: no cover\n00701|         log.misc.warning(\n00702|             \"YAML load took unusually long, please report this at \"\n00703|             \"https://github.com/qutebrowser/qutebrowser/issues/2777\\n\"\n00704|             \"duration: {}s\\n\"\n00705|             \"PyYAML version: {}\\n\"\n00706|             \"C extension: {}\\n\"\n00707|             \"Stack:\\n\\n\"\n00708|             \"{}\".format(\n00709|                 delta, yaml.__version__, YAML_C_EXT,\n00710|                 ''.join(traceback.format_stack())))\n00711| \n00712|     return data\n00713| \n00714| \n00715| def yaml_dump(data: Any, f: IO[str] = None) -> Optional[str]:\n00716|     \"\"\"Wrapper over yaml.dump using the C dumper if possible.\n00717| \n00718|     Also returns a str instead of bytes.\n00719|     \"\"\"\n00720|     yaml_data = yaml.dump(data, f, Dumper=YamlDumper, default_flow_style=False,\n00721|                           encoding='utf-8', allow_unicode=True)\n00722|     if yaml_data is None:\n00723|         return None\n00724|     else:\n00725|         return yaml_data.decode('utf-8')\n00726| \n00727| \n00728| _T = TypeVar('_T')\n00729| \n00730| \n00731| def chunk(elems: Sequence[_T], n: int) -> Iterator[Sequence[_T]]:\n00732|     \"\"\"Yield successive n-sized chunks from elems.\n00733| \n00734|     If elems % n != 0, the last chunk will be smaller.\n00735|     \"\"\"\n00736|     if n < 1:\n00737|         raise ValueError(\"n needs to be at least 1!\")\n00738|     for i in range(0, len(elems), n):\n00739|         yield elems[i:i + n]\n00740| \n00741| \n00742| def guess_mimetype(filename: str, fallback: bool = False) -> str:\n00743|     \"\"\"Guess a mimetype based on a filename.\n00744| \n00745|     Args:\n00746|         filename: The filename to check.\n00747|         fallback: Fall back to application/octet-stream if unknown.\n00748|     \"\"\"\n00749|     mimetype, _encoding = mimetypes.guess_type(filename)\n00750|     if mimetype is None:\n00751|         if fallback:\n00752|             return 'application/octet-stream'\n00753|         else:\n00754|             raise ValueError(\"Got None mimetype for {}\".format(filename))\n00755|     return mimetype\n00756| \n00757| \n00758| def ceil_log(number: int, base: int) -> int:\n00759|     \"\"\"Compute max(1, ceil(log(number, base))).\n00760| \n00761|     Use only integer arithmetic in order to avoid numerical error.\n00762|     \"\"\"\n00763|     if number < 1 or base < 2:\n00764|         raise ValueError(\"math domain error\")\n00765|     result = 1\n00766|     accum = base\n00767|     while accum < number:\n00768|         result += 1\n00769|         accum *= base\n00770|     return result\n00771| \n00772| \n00773| def parse_duration(duration: str) -> int:\n00774|     \"\"\"Parse duration in format XhYmZs into milliseconds duration.\"\"\"\n00775|     if duration.isdigit():\n00776|         # For backward compatibility return milliseconds\n00777|         return int(duration)\n00778| \n00779|     match = re.fullmatch(\n00780|         r'(?P<hours>[0-9]+(\\.[0-9])?h)?\\s*'\n00781|         r'(?P<minutes>[0-9]+(\\.[0-9])?m)?\\s*'\n00782|         r'(?P<seconds>[0-9]+(\\.[0-9])?s)?',\n00783|         duration\n00784|     )\n00785|     if not match or not match.group(0):\n00786|         raise ValueError(\n00787|             f\"Invalid duration: {duration} - \"\n00788|             \"expected XhYmZs or a number of milliseconds\"\n00789|         )\n00790|     seconds_string = match.group('seconds') if match.group('seconds') else '0'\n00791|     seconds = float(seconds_string.rstrip('s'))\n00792|     minutes_string = match.group('minutes') if match.group('minutes') else '0'\n00793|     minutes = float(minutes_string.rstrip('m'))\n00794|     hours_string = match.group('hours') if match.group('hours') else '0'\n00795|     hours = float(hours_string.rstrip('h'))\n00796|     milliseconds = int((seconds + minutes * 60 + hours * 3600) * 1000)\n00797|     return milliseconds\n00798| \n00799| \n00800| def mimetype_extension(mimetype: str) -> Optional[str]:\n00801|     \"\"\"Get a suitable extension for a given mimetype.\n00802| \n00803|     This mostly delegates to Python's mimetypes.guess_extension(), but backports some\n00804|     changes (via a simple override dict) which are missing from earlier Python versions.\n00805|     Most likely, this can be dropped once the minimum Python version is raised to 3.7.\n00806|     \"\"\"\n00807|     overrides = {\n00808|         # Added around 3.8\n00809|         \"application/manifest+json\": \".webmanifest\",\n00810|         \"application/x-hdf5\": \".h5\",\n00811| \n00812|         # Added in Python 3.7\n00813|         \"application/wasm\": \".wasm\",\n00814| \n00815|         # Wrong values for Python 3.6\n00816|         # https://bugs.python.org/issue1043134\n00817|         # https://github.com/python/cpython/pull/14375\n00818|         \"application/octet-stream\": \".bin\",  # not .a\n00819|         \"application/postscript\": \".ps\",  # not .ai\n00820|         \"application/vnd.ms-excel\": \".xls\",  # not .xlb\n00821|         \"application/vnd.ms-powerpoint\": \".ppt\",  # not .pot\n00822|         \"application/xml\": \".xsl\",  # not .rdf\n00823|         \"audio/mpeg\": \".mp3\",  # not .mp2\n00824|         \"image/jpeg\": \".jpg\",  # not .jpe\n00825|         \"image/tiff\": \".tiff\",  # not .tif\n00826|         \"text/html\": \".html\",  # not .htm\n00827|         \"text/plain\": \".txt\",  # not .bat\n00828|         \"video/mpeg\": \".mpeg\",  # not .m1v\n00829|     }\n00830|     if mimetype in overrides:\n00831|         return overrides[mimetype]\n00832|     return mimetypes.guess_extension(mimetype, strict=False)\n00833| \n00834| \n00835| @contextlib.contextmanager\n00836| def cleanup_file(filepath: str) -> Iterator[None]:\n00837|     \"\"\"Context that deletes a file upon exit or error.\n00838| \n00839|     Args:\n00840|         filepath: The file path\n00841|     \"\"\"\n00842|     try:\n00843|         yield\n00844|     finally:\n00845|         try:\n00846|             os.remove(filepath)\n00847|         except OSError as e:\n00848|             log.misc.error(f\"Failed to delete tempfile {filepath} ({e})!\")\n00849| \n00850| \n00851| _RECT_PATTERN = re.compile(r'(?P<w>\\d+)x(?P<h>\\d+)\\+(?P<x>\\d+)\\+(?P<y>\\d+)')\n00852| \n00853| \n00854| def parse_rect(s: str) -> QRect:\n00855|     \"\"\"Parse a rectangle string like 20x20+5+3.\n00856| \n00857|     Negative offsets aren't supported, and neither is leaving off parts of the string.\n00858|     \"\"\"\n00859|     match = _RECT_PATTERN.match(s)\n00860|     if not match:\n00861|         raise ValueError(f\"String {s} does not match WxH+X+Y\")\n00862| \n00863|     w = int(match.group('w'))\n00864|     h = int(match.group('h'))\n00865|     x = int(match.group('x'))\n00866|     y = int(match.group('y'))\n00867| \n00868|     try:\n00869|         rect = QRect(x, y, w, h)\n00870|     except OverflowError as e:\n00871|         raise ValueError(e)\n00872| \n00873|     if not rect.isValid():\n00874|         raise ValueError(\"Invalid rectangle\")\n00875| \n00876|     return rect\n00877| \n\n(End of file - total 877 lines)\n</file>",
+            "title": "qutebrowser/utils/utils.py",
+            "metadata": {
+              "preview": "# vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:\n\n# Copyright 2014-2021 Florian Bruhin (The Compiler) <mail@qutebrowser.org>\n#\n# This file is part of qutebrowser.\n#\n# qutebrowser is free software: you can redistribute it and/or modify\n# it under the terms of the GNU General Public License as published by\n# the Free Software Foundation, either version 3 of the License, or\n# (at your option) any later version.\n#\n# qutebrowser is distributed in the hope that it will be useful,\n# but WITHOUT ANY WARRANTY; without even the implied warranty of\n# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n# GNU General Public License for more details.\n#\n# You should have received a copy of the GNU General Public License\n# along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.\n\n\"\"\"Other utilities which don't fit anywhere else.\"\"\"",
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437945051,
+              "end": 1769437945052
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_07a99571e525103e0169777af806b08194851303e1462a94f5"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab85cee0010kgkYCJrGT7dK4",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab8515e001tlLcBdJpXnXk1z",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9",
+          "cost": 0,
+          "tokens": {
+            "input": 700,
+            "output": 119,
+            "reasoning": 48,
+            "cache": {
+              "read": 14976,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_bfab85d27001pBNThhBmPftd34",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "assistant",
+        "time": {
+          "created": 1769437945127,
+          "completed": 1769437949003
+        },
+        "parentID": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "modelID": "gpt-5.2",
+        "providerID": "openai",
+        "mode": "gpt-codex",
+        "agent": "gpt-codex",
+        "path": {
+          "cwd": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+          "root": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 9692,
+          "output": 49,
+          "reasoning": 17,
+          "cache": {
+            "read": 15616,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_bfab85e3a001yYLAnX32U8i0o0",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab85d27001pBNThhBmPftd34",
+          "type": "step-start",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9"
+        },
+        {
+          "id": "prt_bfab86823001xhhlKDRkFTXI5G",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab85d27001pBNThhBmPftd34",
+          "type": "reasoning",
+          "text": "",
+          "metadata": {
+            "openai": {
+              "itemId": "rs_068ea31a967b67a90169777afbf50c81938ea4b5a1a4e19ec4",
+              "reasoningEncryptedContent": "gAAAAABpd3r8VBDDQh4komEe6YRSQQ4HRGQESq-K6Z3wTsjaLMBFuIJNAaRvhClqyWYNcWOXWd0tWLDJrXp5er0VIMLiipfQJ-twN7k7mPGOZuYyCe6RYEZwUkoMjHIe5QMgyVbvnDYzraWNerTe8ptEkwjtDd04gA2yKfPXuaaZDcUNjaiKmRD6ZoC47Ak3-o_rhHkpmT3ie6u0aCVgXHIh-wq0Qdoqg5jyvk0UMRNSrovdU_zFQWsj7rwkrPYI1MDXslKjU8PM7dZGjqXcRO7TZJATUl_nBrUQlZjbp85bacne1zCMk3AQD2sBrTWim9W_COepth_zQ8Sczl4Wd-JnOnTwGG-XPYij_1piMLTdg1klw6NY_PLHCbvl-CBRxOXJfxvv7DNpc8Aei-LGvDjolHGbz_9NZqke722noEnGZwOW2rGdmgBB0vIfQLFWQE0Za-0tZLongWkdeIEHLOc5MZUE5WNeTlsTAWMk-4zNt_vQDJbVEro3RqJZeliJQhOnmiVdiUBVJGfWHFnQ0mt2sCcl4B66sDiVzlqlSD9UDg524fhbvyt7abK4d5rZFAD0rYMNsglMct6ZRnawSvN7jHAsuwBpLyfoIDqNqLnajTRX6xBvWRha74HcC1QNCBBF-5Pt736hglOVMdhFkcSTSdb_jHTp6mXPplW6u_LRe5zN_V-0nm52vY98eEFaYx8Rtxjfz9kKZrnagCp6h7kIW2EeKlP2MwfJw4hF26vgp89fRDFhS2mRGBVpntYvVvGeSfIzxcq9J_LqUCig3jetStgMkey1tJ5IRMPCPWcMwcuo_q8ef5KX8h9WCsbsAIIwPlC5h1CzgclO06zGhXZ2B1tIRpGzfc7cfZeMAgQuz95TFfFiZQPNVqCOZ152cdBlpqvfQINIAm44EoXPPD_DcrKoLZWwxoSdpVGxbNryTZIVmrTUvZI="
+            }
+          },
+          "time": {
+            "start": 1769437947939,
+            "end": 1769437948383
+          }
+        },
+        {
+          "id": "prt_bfab869e0001MR0F1muTekZv8z",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab85d27001pBNThhBmPftd34",
+          "type": "tool",
+          "callID": "call_M9LSslA5jjXK9PJ3vC3ssizE",
+          "tool": "grep",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "pkg_resources",
+              "include": "qutebrowser/utils/utils.py"
+            },
+            "output": "No files found",
+            "title": "pkg_resources",
+            "metadata": {
+              "matches": 0,
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437948900,
+              "end": 1769437948964
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_068ea31a967b67a90169777afc680c8193b9cbe3bb7d502b30"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab86c25001Hev5qhtO0w3jMI",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab85d27001pBNThhBmPftd34",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "",
+          "cost": 0,
+          "tokens": {
+            "input": 9692,
+            "output": 49,
+            "reasoning": 17,
+            "cache": {
+              "read": 15616,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_bfab86c4e001G8ekMsKYyJsos4",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "assistant",
+        "time": {
+          "created": 1769437949006,
+          "completed": 1769437992244
+        },
+        "parentID": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "modelID": "gpt-5.2",
+        "providerID": "openai",
+        "mode": "gpt-codex",
+        "agent": "gpt-codex",
+        "path": {
+          "cwd": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+          "root": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 151,
+          "output": 243,
+          "reasoning": 168,
+          "cache": {
+            "read": 25216,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_bfab86e33001ALU4ikG6n4XAP5",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab86c4e001G8ekMsKYyJsos4",
+          "type": "step-start",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9"
+        },
+        {
+          "id": "prt_bfab86fb90013S9VAk2CwPwM67",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab86c4e001G8ekMsKYyJsos4",
+          "type": "reasoning",
+          "text": "",
+          "metadata": {
+            "openai": {
+              "itemId": "rs_0ee7593a28ae39080169777afde2ac81958e63be246f555411",
+              "reasoningEncryptedContent": "gAAAAABpd3sCP0A4KyaXpsDKIByQ4xyrWPIUDkNA9Tu6igbM0P98MbuQcABcFYO6kpbLtzjYnxJxyyFgY5scnfxac44gQteRFrBuf169mc-gAMbMHtzaHeqSxyG0uzNABhYG98OgjwQwiufV-iumPZ18QMVjZOrBTtQZk6d3GYPx3FtvmXEWPj5Mkh2WejagdXWN0kb7B751l5T14-HPNoTRBN0N8ZNdOR-yrKaFmbGatBwibZ7twC7JgOf61IlFJrGy9yA7bpAITZpq9J8kHnWq8pA3fvu7Kc0Ervrxvh55TlnbISxNEuo3a8pwV3HkZ_0hBE54YU8mqBSe7s_2mqMkm59i7dBo-mqI7tdsq4UMBe2bx1eDSF_g74tiD-l93bMd68DDvVWQsJHVs0PEV8IeMwDoIhes2yZ68Nj8t5KbocdNPNqyffWW2kbxibgbSULF6oFAYNTBLo4vk6Tn5bQJGaVfH8d-ZmxVhcKEsly5GE6XSLTlRcEmOvj1VsJ_ZvpWZopGLQ1MA8w_TbR-4SMfPiOUvFbBsoj7g6Y1Cf2zO3f86lB5sOHDKh4n2WU_O-WhsQ-JwM9H-fTIDldWnyYWvsOHA2F95k09wm4G3k2puSRGVd0UEJ3p6vF1MjRnusuWlTDXMDin0MdwMFuJp22CgmjVlMJf10lg5_7ArkOVUV4NKdSSxx_s9Vshr-9S0l53fBM5rrN_ChekJTTAbPMlFGFHiNa3l4Q95VQEN08WerZ6Zo0xB09tjNlkLZd0u_s1bgs5MUmccd-osq5iNQTGoiIPq-Sa0LozoI1T8GRbYaEK-ocTmXFsGT_tdGX7Ftxc_7K7-WxBp9Bnd2VuOUtfRLKocEYiymxl4mObTBtbO_9kiROtT3h98FXUvs2iVr5wSb9zMpMBoWgXDAUBe1x6H6Xid7ZArM0sh27gJbKRqOpmOeW5woBLj0-ikM6KHE9Fb_0Ts2yqOXWPZ36XY62P0pKnR05NYke7xnQxeh-u7-7WN-9KUGC7O5WV5RSx27YInmLmRXNAR1ygelkNLggFJosH2TVTp8FMJ-Guneqep2MPdcMLWs00Nxd3MFBg_PZ22JRRhf9Yf_jtP0ei5tW_fmibZgzUIsWPQRO-Al0jNYZxDaEiIau0Tp2rPKVc5Kt9K5xTsPmeQgrYLlahX6gp7jaQuiRFZl88JwT6I9OpJzbOuKtYOwUopBH5-y3hk8NGlBC-qrpfef1Hx8z7I8udtAxPp7oHpQCLDj9zQaRff56Z-BR9OrgMorpKhbo2dJgp3OCEvdFqukkqG8yf5eusUfSstODADOHuqcDNQNLC0Vy28bXf6crSv6AcapIPc-soVPGaLLSiU-qAdm-uP4jQorFyEkmcQw9EHespOLO79qgBKjsn6sax6CrkJFMOtMH2k7A8exHR9GI3OuxTu1ojrc9MnKWwoOEvsWVrI9_kNBo4eY4sr-Du5AzNWgBf1zFrgkGonI31oNX5N5pdpPeO-hFS_QtZ6t-THpKqVG2LJnMHd_dISd7n_-fbTC3GTZPh7wFbh43h0nscqa4r677wKrD9r7QcyGZI6fcjSkvenaMFEBR0F3OfzkkObBu5nWnU1juzFYdoA8cclHfJKhIVXk3amAUVJnlAdCVVGpEzjdMHNHFrvqvQW7QyT45qBlm43AiJTgB9LN_u5mh_BtkS5vXAanYJwXt-ZDwvWu2OIRG5peGXe_UX4EH-TBjcFV2ISAPt2YICFix0RSZ-R5sYuSPFVtc4y-kmez6NfuUlk_3tXt-D61JnE0rA7iI5grtzrdl7JIwq"
+            }
+          },
+          "time": {
+            "start": 1769437949881,
+            "end": 1769437954176
+          }
+        },
+        {
+          "id": "prt_bfab88082001flQOtkpAv9NrKD",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab86c4e001G8ekMsKYyJsos4",
+          "type": "tool",
+          "callID": "call_coP0nN0hmShF8rItZY3MsIJ9",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "source .venv/bin/activate && PYTHONPATH=\"$PWD\" QT_QPA_PLATFORM=offscreen pytest tests/unit/components/test_hostblock.py tests/unit/utils/test_urlutils.py tests/unit/config/test_configutils.py -q",
+              "description": "Run specified tests with PYTHONPATH set"
+            },
+            "output": "........................................................................ [ 17%]\n........................................................................ [ 34%]\n........................................................................ [ 51%]\n........................................................................ [ 68%]\n........................................................................ [ 86%]\n..........................................................               [100%]\n\n--------------------------------------------------------------------------------- benchmark: 8 tests --------------------------------------------------------------------------------\nName (time in ns)                                                                                               Min                         Max                      Median          \n-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\ntest_adblock_benchmark                                                                                     124.9993 (1.0)            1,847.2217 (1.0)              131.9438 (1.0)    \ntest_bench_widen_hostnames[qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq.c]             629.1491 (5.03)           5,379.1999 (2.91)             660.4008 (5.01)   \ntest_bench_widen_hostnames[test.qutebrowser.org]                                                           835.4516 (6.68)           7,277.1014 (3.94)             872.8995 (6.62)   \ntest_domain_lookup_sparse_benchmark[http://www.qutebrowser.com/]                                         1,916.9529 (15.34)         18,374.9944 (9.95)           2,082.9611 (15.79)  \ntest_domain_lookup_sparse_benchmark[http://foo.bar.baz/]                                                 3,791.0067 (30.33)         95,915.9806 (51.92)          3,999.9723 (30.32)  \ntest_bench_widen_hostnames[a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.z.y.z]                          5,499.9837 (44.00)         76,125.0267 (41.21)          5,833.9792 (44.22)  \ntest_domain_lookup_sparse_benchmark[http://bop.foo.bar.baz/]                                             8,166.0110 (65.33)         29,459.0136 (15.95)          8,417.0024 (63.79)  \ntest_add_url_benchmark                                                                             661,190,957.9951 (>1000.0)  697,872,209.0134 (>1000.0)  693,496,708.9910 (>1000.0)\n-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\nLegend:\n  Outliers: 1 Standard Deviation from Mean; 1.5 IQR (InterQuartile Range) from 1st Quartile and 3rd Quartile.\n  OPS: Operations Per Second, computed as 1 / Mean\n418 passed in 15.15s\n",
+            "title": "Run specified tests with PYTHONPATH set",
+            "metadata": {
+              "output": "........................................................................ [ 17%]\n........................................................................ [ 34%]\n........................................................................ [ 51%]\n........................................................................ [ 68%]\n........................................................................ [ 86%]\n..........................................................               [100%]\n\n--------------------------------------------------------------------------------- benchmark: 8 tests --------------------------------------------------------------------------------\nName (time in ns)                                                                                               Min                         Max                      Median          \n-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\ntest_adblock_benchmark                                                                                     124.9993 (1.0)            1,847.2217 (1.0)              131.9438 (1.0)    \ntest_bench_widen_hostnames[qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq.c]             629.1491 (5.03)           5,379.1999 (2.91)             660.4008 (5.01)   \ntest_bench_widen_hostnames[test.qutebrowser.org]                                                           835.4516 (6.68)           7,277.1014 (3.94)             872.8995 (6.62)   \ntest_domain_lookup_sparse_benchmark[http://www.qutebrowser.com/]                                         1,916.9529 (15.34)         18,374.9944 (9.95)           2,082.9611 (15.79)  \ntest_domain_lookup_sparse_benchmark[http://foo.bar.baz/]                                                 3,791.0067 (30.33)         95,915.9806 (51.92)          3,999.9723 (30.32)  \ntest_bench_widen_hostnames[a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.z.y.z]                          5,499.9837 (44.00)         76,125.0267 (41.21)          5,833.9792 (44.22)  \ntest_domain_lookup_sparse_benchmark[http://bop.foo.bar.baz/]                                             8,166.0110 (65.33)         29,459.0136 (15.95)          8,417.0024 (63.79)  \ntest_add_url_benchmark                                                                             661,190,957.9951 (>1000.0)  697,872,209.0134 (>1000.0)  693,496,708.9910 (>1000.0)\n-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\nLegend:\n  Outliers: 1 Standard Deviation from Mean; 1.5 IQR (InterQuartile Range) from 1st Quartile and 3rd Quartile.\n  OPS: Operations Per Second, computed as 1 / Mean\n418 passed in 15.15s\n",
+              "exit": 0,
+              "description": "Run specified tests with PYTHONPATH set",
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437955190,
+              "end": 1769437992052
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_0ee7593a28ae39080169777b022dd8819581dc11cbe0c15a67"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab914750010qxYKl458mjvAq",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab86c4e001G8ekMsKYyJsos4",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9",
+          "cost": 0,
+          "tokens": {
+            "input": 151,
+            "output": 243,
+            "reasoning": 168,
+            "cache": {
+              "read": 25216,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_bfab9153a001KlNw1BUNmia7mB",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "assistant",
+        "time": {
+          "created": 1769437992250,
+          "completed": 1769437995604
+        },
+        "parentID": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "modelID": "gpt-5.2",
+        "providerID": "openai",
+        "mode": "gpt-codex",
+        "agent": "gpt-codex",
+        "path": {
+          "cwd": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+          "root": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 691,
+          "output": 126,
+          "reasoning": 46,
+          "cache": {
+            "read": 12416,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_bfab9171e001Ba5b4aqORB6QHR",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab9153a001KlNw1BUNmia7mB",
+          "type": "step-start",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9"
+        },
+        {
+          "id": "prt_bfab91920001faCU06YghlxS2Q",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab9153a001KlNw1BUNmia7mB",
+          "type": "reasoning",
+          "text": "",
+          "metadata": {
+            "openai": {
+              "itemId": "rs_06f6114dfa9b5e9b0169777b294088819494e96123f876e0cc",
+              "reasoningEncryptedContent": "gAAAAABpd3sqD40Xi6qA5SqGJpa3gMoH6gFmjgLr8p2ScNB2-hF9GymfwlU9ieXUXJn_l139rozPtrUMuaetcIryXVEDTYwmqdQqaYTozS2WrMqaHhrgArqwp6esq458SuwYIcmEEvGSDGGowi6U0KieBoqbHU8iLHZeTflsGB3Nx1pTrc6Oz02RLLhZy4QqgocvnUbbCT4cRRXiteIamjc06g6UMWfV_jkNcs_AA2YsnrfaDwJmjC9lH0X_XWy8MSr6nzY4P4ZFvCcnOLSRPD0WKaAs8iPb-x0PsGsYukpUT9h3hCL3kQZ3aP2jRGCay9uxOINvmp_xKbKgfwwdAoh8qx3-COmYesJxRKmphwsxHTvwk_JB5ccTseI4m62MDKaIBk20GtFqPnQDHZ1q-JdrownGmRrBDZFYxyqYqwTpqEnhubPgjmvJshTMw0yn3q-GfYcQIE8c8wddGM5zFPPrDeE3TNl4gHtlfiG6Ov_IYk6fCUJm0quQaCakhihtRQ4MhQ4DCLvV_TXD4-qgsCJAgpy6ADLUDjQmPtTGsoeylhujMTgfV7-3lkJM3uk1NHf5vzQ22Bbep81nujX_riFfUHT9PzqYIPg9-yk_oQOTrwZ_mhfjOEAtkOPbFOrtMW3qwRIVifRC1LAvBkq0bn9xOjjC9gjBhb8mQP-9T5hPMDt0fZvqxuGwq1xDJHA3kWuH6qppV0kDdCmjVM9yqToNpaP2ikUlKWX3JFT7KHZAWTzT-hj1k3_ZTjuxleS4QqTbFw5pgiQFpwYF-iALlbREsroSN3I84d9etF844W3As9S4iVb3r6UzeCANgsiDvy3jy012RHLVNuOREnZuUSTNHQBCnyouCVou3fQ8BweY9dlofF0FcX3jOpZSjeOK0c68whjhfkfTqsk4BmXF04xbzvzUO4GBA7TkFPo9fibNnZDCc1oKxwjcJumal7wQwJn-HaoQppNYYHb1smyY_Z0-esUYbwFlJOpYwdEgNIXSe7Erzg2MHBpKXugBvEwiVpnkuwnpOcXE47avQeqGJSFBcwWx-yWy2j6yk4bKofu_bPa14r2o-HSaNqtR4eLwOPG0xQcqNifGg4NV4eTRi3kHamGjNDQYjgm5x5-Z_ycnFdTQ-ejWH6Y="
+            }
+          },
+          "time": {
+            "start": 1769437993248,
+            "end": 1769437994762
+          }
+        },
+        {
+          "id": "prt_bfab91f0d001Aq1dkrSBiZV2UY",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab9153a001KlNw1BUNmia7mB",
+          "type": "tool",
+          "callID": "call_OBGg6s4cUR5Kr2aQc47hASTC",
+          "tool": "grep",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "widened_hostnames",
+              "include": "qutebrowser/utils/urlutils.py"
+            },
+            "output": "Found 1 matches\n/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/qutebrowser/utils/urlutils.py:\n  Line 455: def widened_hostnames(hostname: Optional[str]) -> Iterator[str]:",
+            "title": "widened_hostnames",
+            "metadata": {
+              "matches": 1,
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437995067,
+              "end": 1769437995132
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_06f6114dfa9b5e9b0169777b2abc108194b85ec2ed5e8e7688"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab9203c0014O2bj4VY3UN1jW",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab9153a001KlNw1BUNmia7mB",
+          "type": "tool",
+          "callID": "call_LXfOn5eQGP5Oz6REE66w2JBZ",
+          "tool": "grep",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "_is_blocked",
+              "include": "qutebrowser/components/hostblock.py"
+            },
+            "output": "Found 2 matches\n/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/qutebrowser/components/hostblock.py:\n  Line 114:     def _is_blocked(self, request_url: QUrl, first_party_url: QUrl = None) -> bool:\n  Line 139:         if self._is_blocked(",
+            "title": "_is_blocked",
+            "metadata": {
+              "matches": 2,
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437995449,
+              "end": 1769437995528
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_06f6114dfa9b5e9b0169777b2b10a081949883e454f2690e1a"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab92209001zlFFeRoVuAg5r3",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab9153a001KlNw1BUNmia7mB",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9",
+          "cost": 0,
+          "tokens": {
+            "input": 691,
+            "output": 126,
+            "reasoning": 46,
+            "cache": {
+              "read": 12416,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_bfab92258001FQ7Edl5GPAzIyo",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "assistant",
+        "time": {
+          "created": 1769437995608,
+          "completed": 1769437998422
+        },
+        "parentID": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "modelID": "gpt-5.2",
+        "providerID": "openai",
+        "mode": "gpt-codex",
+        "agent": "gpt-codex",
+        "path": {
+          "cwd": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+          "root": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 561,
+          "output": 111,
+          "reasoning": 38,
+          "cache": {
+            "read": 25984,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_bfab9247a001KMLfEedszd3Qgx",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab92258001FQ7Edl5GPAzIyo",
+          "type": "step-start",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9"
+        },
+        {
+          "id": "prt_bfab925c7001OLSIkiWM4fSF6x",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab92258001FQ7Edl5GPAzIyo",
+          "type": "reasoning",
+          "text": "",
+          "metadata": {
+            "openai": {
+              "itemId": "rs_066e7378cbad8d1e0169777b2c7e0081968441c75cdf5bd8a1",
+              "reasoningEncryptedContent": "gAAAAABpd3stWsZX7bxF-AYf16kPDikhyiz6b9gdXg39syZPkvPlAs1sGltcXyb9RiOFbH8dSSI4IuQ5ule3do8qMT2PAHQPTYNLI5AvzKSSwRK-RU8Nhl-VcT_zZ_MgCLQDIUrtW78YWbtaE9a1ouGRtOjOLEfXPXbf4fu8lrrZfU8Kz2SDYcsJyoA0UfNFyy7d-bz8au0qamZsbLVNoJVUq8k_14iggRjNdqrfaAM4bjzKaeC130nWF1l5OIPYWMvrqLQCnHiNbNOCroZD4_4a_4TMkI9ixehvHxkTDEJizqfv2eQagZEijBySyhHmIylfMSQ3kV2-eIU2KHICRwFTuK6L4uf3OV4429bdbM_C3JJvPDzvacKvfV6ks84Kjg0ON78vCOxQl4ViSWq6Uoo7tIBf9KqJGCfC9m-m2CKAfxEhPIw-gYv1Pow6k0AgHzTUKyhzqNVgZp1YJRwTQ4CC_mYq8kAyvRh2mp0vdzZ5UFncVV7X1dWvIAA0ukCXtrguwFZYdFE8TCAD877YvfH8srUO9fnnR1iWa1q07YMIHjotkxuuKsAGBSEp4NCFtWHzlZv0j9WOQ9hhTE1jXWa7eXVDZqv8bzW7U9NHJC4sLeTmb50YhT3xgjP_iuPCiUNMB-jhn4H1K4i4595LywezoplIS_NgkDtqGej0FLeYU-1L2lY3rYmrbCHMrb3uElpzhZOn3fSLgnv-DL0r8fwbNBUdL2iH8xbpVWY60O65aQRM-DPPIQ3ImQlXvxe4u0rT1HyzgFbMF2lCmcCVmpGgvs2ROJ-PxZ4yGXq74BryXY4VYrJ2JYNQGdArJSmFmHnLIuQ2YNOPU4BemsJ8UitVYUKrVZoERLKtkaExll74R6uGkNi40EPSRj1vRx_-TkRSKGXWFLWBfhCobimje3KuT7ci5PHHNpzFJ6X9Karz83uuobJI-Gjt4pjw_UkP4HU4e7U6Ys2yaUVYltRhM0Iu2kdDQDG6vNJOW4Ot77-NpyrF5EKKsdnYI1mZlfaMrgHxrEvi32D8hQlbp9RnUhvxOTzrHVyPGA=="
+            }
+          },
+          "time": {
+            "start": 1769437996487,
+            "end": 1769437997744
+          }
+        },
+        {
+          "id": "prt_bfab92ab2001wiCQB6PMIVFdAa",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab92258001FQ7Edl5GPAzIyo",
+          "type": "tool",
+          "callID": "call_UaMZMn9BynKARutoNqTNxytb",
+          "tool": "read",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8/qutebrowser/components/hostblock.py"
+            },
+            "output": "<file>\n00001| # vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:\n00002| \n00003| # Copyright 2014-2021 Florian Bruhin (The Compiler) <mail@qutebrowser.org>\n00004| #\n00005| # This file is part of qutebrowser.\n00006| #\n00007| # qutebrowser is free software: you can redistribute it and/or modify\n00008| # it under the terms of the GNU General Public License as published by\n00009| # the Free Software Foundation, either version 3 of the License, or\n00010| # (at your option) any later version.\n00011| #\n00012| # qutebrowser is distributed in the hope that it will be useful,\n00013| # but WITHOUT ANY WARRANTY; without even the implied warranty of\n00014| # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n00015| # GNU General Public License for more details.\n00016| #\n00017| # You should have received a copy of the GNU General Public License\n00018| # along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.\n00019| \n00020| \"\"\"Functions related to host blocking.\"\"\"\n00021| \n00022| import os.path\n00023| import posixpath\n00024| import zipfile\n00025| import logging\n00026| import pathlib\n00027| from typing import cast, IO, Set\n00028| \n00029| from PyQt5.QtCore import QUrl\n00030| \n00031| from qutebrowser.api import (\n00032|     hook,\n00033|     config,\n00034|     message,\n00035|     interceptor,\n00036|     apitypes,\n00037|     qtutils,\n00038| )\n00039| from qutebrowser.components.utils import blockutils\n00040| from qutebrowser.utils import urlutils, version  # FIXME: Move needed parts into api namespace?\n00041| \n00042| \n00043| logger = logging.getLogger(\"network\")\n00044| host_blocker = cast(\"HostBlocker\", None)\n00045| \n00046| \n00047| def _guess_zip_filename(zf: zipfile.ZipFile) -> str:\n00048|     \"\"\"Guess which file to use inside a zip file.\"\"\"\n00049|     files = zf.namelist()\n00050|     if len(files) == 1:\n00051|         return files[0]\n00052|     else:\n00053|         for e in files:\n00054|             if posixpath.splitext(e)[0].lower() == \"hosts\":\n00055|                 return e\n00056|     raise FileNotFoundError(\"No hosts file found in zip\")\n00057| \n00058| \n00059| def get_fileobj(byte_io: IO[bytes]) -> IO[bytes]:\n00060|     \"\"\"Get a usable file object to read the hosts file from.\"\"\"\n00061|     byte_io.seek(0)  # rewind downloaded file\n00062|     if zipfile.is_zipfile(byte_io):\n00063|         byte_io.seek(0)  # rewind what zipfile.is_zipfile did\n00064|         zf = zipfile.ZipFile(byte_io)\n00065|         filename = _guess_zip_filename(zf)\n00066|         byte_io = zf.open(filename, mode=\"r\")\n00067|     else:\n00068|         byte_io.seek(0)  # rewind what zipfile.is_zipfile did\n00069|     return byte_io\n00070| \n00071| \n00072| def _should_be_used() -> bool:\n00073|     \"\"\"Whether the hostblocker should be used or not.\"\"\"\n00074|     method = config.val.content.blocking.method\n00075| \n00076|     adblock_info = version.MODULE_INFO[\"adblock\"]\n00077|     adblock_usable = adblock_info.is_usable()\n00078| \n00079|     logger.debug(f\"Configured adblock method {method}, adblock library usable: \"\n00080|                  f\"{adblock_usable}\")\n00081|     return method in (\"both\", \"hosts\") or (method == \"auto\" and not adblock_usable)\n00082| \n00083| \n00084| class HostBlocker:\n00085| \n00086|     \"\"\"Manage blocked hosts based from /etc/hosts-like files.\n00087| \n00088|     Attributes:\n00089|         enabled: Given the current blocking method, should the host blocker be enabled?\n00090|         _blocked_hosts: A set of blocked hosts.\n00091|         _config_blocked_hosts: A set of blocked hosts from ~/.config.\n00092|         _local_hosts_file: The path to the blocked-hosts file.\n00093|         _config_hosts_file: The path to a blocked-hosts in ~/.config\n00094|         _has_basedir: Whether a custom --basedir is set.\n00095|     \"\"\"\n00096| \n00097|     def __init__(\n00098|         self,\n00099|         *,\n00100|         data_dir: pathlib.Path,\n00101|         config_dir: pathlib.Path,\n00102|         has_basedir: bool = False\n00103|     ) -> None:\n00104|         self.enabled = _should_be_used()\n00105|         self._has_basedir = has_basedir\n00106|         self._blocked_hosts: Set[str] = set()\n00107|         self._config_blocked_hosts: Set[str] = set()\n00108| \n00109|         self._local_hosts_file = str(data_dir / \"blocked-hosts\")\n00110|         self.update_files()\n00111| \n00112|         self._config_hosts_file = str(config_dir / \"blocked-hosts\")\n00113| \n00114|     def _is_blocked(self, request_url: QUrl, first_party_url: QUrl = None) -> bool:\n00115|         \"\"\"Check whether the given request is blocked.\"\"\"\n00116|         if not self.enabled:\n00117|             return False\n00118| \n00119|         if first_party_url is not None and not first_party_url.isValid():\n00120|             first_party_url = None\n00121| \n00122|         qtutils.ensure_valid(request_url)\n00123| \n00124|         if not config.get(\"content.blocking.enabled\", url=first_party_url):\n00125|             return False\n00126| \n00127|         if blockutils.is_whitelisted_url(request_url):\n00128|             return False\n00129| \n00130|         host = request_url.host().lower()\n00131|         for candidate in urlutils.widened_hostnames(host):\n00132|             if candidate in self._blocked_hosts or candidate in self._config_blocked_hosts:\n00133|                 return True\n00134| \n00135|         return False\n00136| \n00137|     def filter_request(self, info: interceptor.Request) -> None:\n00138|         \"\"\"Block the given request if necessary.\"\"\"\n00139|         if self._is_blocked(\n00140|             request_url=info.request_url, first_party_url=info.first_party_url\n00141|         ):\n00142|             logger.debug(\n00143|                 \"Request to {} blocked by host blocker.\".format(info.request_url.host())\n00144|             )\n00145|             info.block()\n00146| \n00147|     def _read_hosts_line(self, raw_line: bytes) -> Set[str]:\n00148|         \"\"\"Read hosts from the given line.\n00149| \n00150|         Args:\n00151|             line: The bytes object to read.\n00152| \n00153|         Returns:\n00154|             A set containing valid hosts found\n00155|             in the line.\n00156|         \"\"\"\n00157|         if raw_line.startswith(b\"#\"):\n00158|             # Ignoring comments early so we don't have to care about\n00159|             # encoding errors in them\n00160|             return set()\n00161| \n00162|         line = raw_line.decode(\"utf-8\")\n00163| \n00164|         # Remove comments\n00165|         hash_idx = line.find(\"#\")\n00166|         line = line if hash_idx == -1 else line[:hash_idx]\n00167| \n00168|         parts = line.strip().split()\n00169|         if len(parts) == 1:\n00170|             # \"one host per line\" format\n00171|             hosts = parts\n00172|         else:\n00173|             # /etc/hosts format\n00174|             hosts = parts[1:]\n00175| \n00176|         filtered_hosts = set()\n00177|         for host in hosts:\n00178|             host = host.lower()\n00179|             if \".\" in host and not host.endswith(\".localdomain\") and host != \"0.0.0.0\":\n00180|                 filtered_hosts.update([host])\n00181| \n00182|         return filtered_hosts\n00183| \n00184|     def _read_hosts_file(self, filename: str, target: Set[str]) -> bool:\n00185|         \"\"\"Read hosts from the given filename.\n00186| \n00187|         Args:\n00188|             filename: The file to read.\n00189|             target: The set to store the hosts in.\n00190| \n00191|         Return:\n00192|             True if a read was attempted, False otherwise\n00193|         \"\"\"\n00194|         if not os.path.exists(filename):\n00195|             return False\n00196| \n00197|         try:\n00198|             with open(filename, \"rb\") as f:\n00199|                 for line in f:\n00200|                     target |= self._read_hosts_line(line)\n00201| \n00202|         except (OSError, UnicodeDecodeError):\n00203|             logger.exception(\"Failed to read host blocklist!\")\n00204| \n00205|         return True\n00206| \n00207|     def read_hosts(self) -> None:\n00208|         \"\"\"Read hosts from the existing blocked-hosts file.\"\"\"\n00209|         self._blocked_hosts = set()\n00210| \n00211|         self._read_hosts_file(self._config_hosts_file, self._config_blocked_hosts)\n00212| \n00213|         found = self._read_hosts_file(self._local_hosts_file, self._blocked_hosts)\n00214| \n00215|         if not found:\n00216|             if (\n00217|                 config.val.content.blocking.hosts.lists\n00218|                 and not self._has_basedir\n00219|                 and config.val.content.blocking.enabled\n00220|                 and self.enabled\n00221|             ):\n00222|                 message.info(\"Run :adblock-update to get adblock lists.\")\n00223| \n00224|     def adblock_update(self) -> blockutils.BlocklistDownloads:\n00225|         \"\"\"Update the adblock block lists.\"\"\"\n00226|         self._read_hosts_file(self._config_hosts_file, self._config_blocked_hosts)\n00227|         self._blocked_hosts = set()\n00228| \n00229|         blocklists = config.val.content.blocking.hosts.lists\n00230|         dl = blockutils.BlocklistDownloads(blocklists)\n00231|         dl.single_download_finished.connect(self._merge_file)\n00232|         dl.all_downloads_finished.connect(self._on_lists_downloaded)\n00233|         dl.initiate()\n00234|         return dl\n00235| \n00236|     def _merge_file(self, byte_io: IO[bytes]) -> None:\n00237|         \"\"\"Read and merge host files.\n00238| \n00239|         Args:\n00240|             byte_io: The BytesIO object of the completed download.\n00241|         \"\"\"\n00242|         error_count = 0\n00243|         line_count = 0\n00244|         try:\n00245|             f = get_fileobj(byte_io)\n00246|         except (OSError, zipfile.BadZipFile, zipfile.LargeZipFile, LookupError) as e:\n00247|             message.error(\n00248|                 \"hostblock: Error while reading {}: {} - {}\".format(\n00249|                     byte_io.name, e.__class__.__name__, e\n00250|                 )\n00251|             )\n00252|             return\n00253| \n00254|         for line in f:\n00255|             line_count += 1\n00256|             try:\n00257|                 self._blocked_hosts |= self._read_hosts_line(line)\n00258|             except UnicodeDecodeError:\n00259|                 logger.error(\"Failed to decode: {!r}\".format(line))\n00260|                 error_count += 1\n00261| \n00262|         logger.debug(\"{}: read {} lines\".format(byte_io.name, line_count))\n00263|         if error_count > 0:\n00264|             message.error(\n00265|                 \"hostblock: {} read errors for {}\".format(error_count, byte_io.name)\n00266|             )\n00267| \n00268|     def _on_lists_downloaded(self, done_count: int) -> None:\n00269|         \"\"\"Install block lists after files have been downloaded.\"\"\"\n00270|         try:\n00271|             with open(self._local_hosts_file, \"w\", encoding=\"utf-8\") as f:\n00272|                 for host in sorted(self._blocked_hosts):\n00273|                     f.write(host + \"\\n\")\n00274|                 message.info(\n00275|                     \"hostblock: Read {} hosts from {} sources.\".format(\n00276|                         len(self._blocked_hosts), done_count\n00277|                     )\n00278|                 )\n00279|         except OSError:\n00280|             logger.exception(\"Failed to write host block list!\")\n00281| \n00282|     def update_files(self) -> None:\n00283|         \"\"\"Update files when the config changed.\"\"\"\n00284|         if not config.val.content.blocking.hosts.lists:\n00285|             try:\n00286|                 os.remove(self._local_hosts_file)\n00287|             except FileNotFoundError:\n00288|                 pass\n00289|             except OSError as e:\n00290|                 logger.exception(\"Failed to delete hosts file: {}\".format(e))\n00291| \n00292| \n00293| @hook.config_changed(\"content.blocking.hosts.lists\")\n00294| def on_lists_changed() -> None:\n00295|     host_blocker.update_files()\n00296| \n00297| \n00298| @hook.config_changed(\"content.blocking.method\")\n00299| def on_method_changed() -> None:\n00300|     host_blocker.enabled = _should_be_used()\n00301| \n00302| \n00303| @hook.init()\n00304| def init(context: apitypes.InitContext) -> None:\n00305|     \"\"\"Initialize the host blocker.\"\"\"\n00306|     global host_blocker\n00307|     host_blocker = HostBlocker(\n00308|         data_dir=context.data_dir,\n00309|         config_dir=context.config_dir,\n00310|         has_basedir=context.args.basedir is not None,\n00311|     )\n00312|     host_blocker.read_hosts()\n00313|     interceptor.register(host_blocker.filter_request)\n00314| \n\n(End of file - total 314 lines)\n</file>",
+            "title": "qutebrowser/components/hostblock.py",
+            "metadata": {
+              "preview": "# vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:\n\n# Copyright 2014-2021 Florian Bruhin (The Compiler) <mail@qutebrowser.org>\n#\n# This file is part of qutebrowser.\n#\n# qutebrowser is free software: you can redistribute it and/or modify\n# it under the terms of the GNU General Public License as published by\n# the Free Software Foundation, either version 3 of the License, or\n# (at your option) any later version.\n#\n# qutebrowser is distributed in the hope that it will be useful,\n# but WITHOUT ANY WARRANTY; without even the implied warranty of\n# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n# GNU General Public License for more details.\n#\n# You should have received a copy of the GNU General Public License\n# along with qutebrowser.  If not, see <https://www.gnu.org/licenses/>.\n\n\"\"\"Functions related to host blocking.\"\"\"",
+              "truncated": false
+            },
+            "time": {
+              "start": 1769437998345,
+              "end": 1769437998347
+            }
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "fc_066e7378cbad8d1e0169777b2d83fc81968a00bb9b4aba5f11"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab92d160013djWm0pHOWe5Hy",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab92258001FQ7Edl5GPAzIyo",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9",
+          "cost": 0,
+          "tokens": {
+            "input": 561,
+            "output": 111,
+            "reasoning": 38,
+            "cache": {
+              "read": 25984,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_bfab92d5b0011pYUrgUVgvYwzZ",
+        "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+        "role": "assistant",
+        "time": {
+          "created": 1769437998427,
+          "completed": 1769438006293
+        },
+        "parentID": "msg_bfaaf7d150015SCtS72o70PMGS",
+        "modelID": "gpt-5.2",
+        "providerID": "openai",
+        "mode": "gpt-codex",
+        "agent": "gpt-codex",
+        "path": {
+          "cwd": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8",
+          "root": "/Users/srihari/work/nilenso/swe-bench-pro-task-setup/worktrees/c580ebf0_subdomain_blocking_gpt-codex_20260126_092238_93892fe8"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 3499,
+          "output": 419,
+          "reasoning": 170,
+          "cache": {
+            "read": 26496,
+            "write": 0
+          }
+        },
+        "finish": "stop"
+      },
+      "parts": [
+        {
+          "id": "prt_bfab92e9c001mZHcWb0sXtEKOA",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab92d5b0011pYUrgUVgvYwzZ",
+          "type": "step-start",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9"
+        },
+        {
+          "id": "prt_bfab9307f001avUVQhcvn5rabY",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab92d5b0011pYUrgUVgvYwzZ",
+          "type": "reasoning",
+          "text": "",
+          "metadata": {
+            "openai": {
+              "itemId": "rs_02b222078c78f12f0169777b2f391c8194a2cf5e4010221eee",
+              "reasoningEncryptedContent": "gAAAAABpd3syKzmKVhIIha3Xwp_S198JQkkweXT-wbUpOt27AzgrJK0q_ExE9DQeBUEot636iYKzk4_puBsLkBd5BfnypUF8KRI8H2mvNB-6LiGeTGJ-R97yZ3bqMeArpGBExEfEJvdHxY51Y5MVibkIT1lItzJEYkHg_xe3rIsc0QSJ97anKn-hEV50b3patnpjypefZPNSPB8I-6BFTUacWsQYEFXZIET4BHQ7lX8CnoNRHQanvwncyFKA9shyypYvBZczP5-oe7V_LvduMbdygbRXwzfJtwptK2noxumpKTsvHSMXbNHVx1WQwkONOd8ivwce1uMkLC47e275ON6tchcNsPE6ZaakueZD7zgPhDSfaTDw3vPiVZy09YokBqiTBceMXskBwdZNEI9g3yYGSZhwo5Z23JVRSoQImUljYhVQbRpcvXQrafcx4bMU9DEj18fVq7--FXzRmeC0r2vxDq_1fOJU82dipzU5Ai7E2-Qa-jw0-HMgSW6XdySEChG8sk_jCGcZz9fBaGMy3Au5NsJkTho4agHYE3QSUxEPBYhnwpH8jjQc6Yb4gstsGyD8EhAk-cKD0nfSvfkyjl7a9oRAQFTo8mnUMrO8S_ICVdot9kH4ok1Nn-hnji2r1-AyyU0sCaaGVuEBP9oU0YLcE4kmCRaZTtp9KecHQpTVEI9b-QV9cpqDoOVtrol0toShaenURd9lZAo_Ve8Lc2Fdl2DjX39LuyAk-zheCzY2al2F_e9KQ16oevGCowZQxWsY0Gdycr4AEfNPejiuM8JxMdnJpC2yyKlWMySwoRVL9xr_qelVx-Z940mMJeKrtPxrTG4iUA7EzAe5cOvCv5WGHsUQZer7kQI8jXWw0B5SkOOr7TV4sk4bgE33M31GtHivWL_m-el6Ry--7QquW8yx5Pdd7f30PFoZ8fU_VGM6G7wkD8PaseivEgV4wjLe3-AFDeGMTAgYwCdb9YoCU7eelpQU6yTiRBlD0tarDlQ5bLQ9CgrVwQnXfbsdJvPX2Rt1EALZmRSgUyXiJKN8PwguJkc8gFNidOfwIZH_y0wfSXC9OXsF155NV8ekj12sGMY2K2pwaclYAnCkx8gqsGRsQl2hQzOE525sLk6GAyUNDqjMPcTTzLYZReevYIctmwI1KlqPsx5X-baj-WZWrET7gPQuE2N9U7_a-uS9WgGUgWmglSWGOvw4JBIBxAx2myyInpr7Qd5FqzEjK-NTUaqNesHTS_CqqvdM13h6BOtsmHa2BaCINnG55zE-88KyH1r6skqpVg6ODdjl-7dfRYFKbxOk7UZHuGfp0Gb0qm5IsCCAmcAeMFzSsElLV1mcdAA_dt2o8ehKWOWeaabGerBNmfRpufsHo_NNEhKD807MEwOQ-yAcO8oBqQYg4i29tNWFZuJty4P8xnjGRx7K25QSJjENSQmx3fyjSFnbU_fFmqTBarX15MFquUN05hPubY6GZ6Jqc_4J_-VlLgxFgKRx7hWUxpz5csbRXk0qi4IoMUdl4cWjJLSlD6L8a0shzTZj1tfxvr2XEVSRg00fYy1XYM3ufkANtH9tLVLw5iS4gYzdVP0fCi4cTgPxEcwBmXSskrjBmDsEQtCBX088UHJZOjhZYmi7gnzZ2bBAQ9g8mNVyoDtqlenK4BLSO3h1OuqU6tMgrX8Tm3hidn4ZPGwuIbbfcwCve_MT79GHy7W83OO4pRB74S97cvaN8avlxqPfLFrnKbWTWTGzKMEWgNuM1rRcsRURGYQ-jorup35eYKQWOn6arM22jHsDsFZ7yjPRI4fxsXrLE75JUrunDnsSujA4P8oqjZiNzi-toxJPZzvBK4q6gKYz89Ac7UOUF1rgJjtqKFy1LVnppar2TMZzsa0JT_iIdA=="
+            }
+          },
+          "time": {
+            "start": 1769437999231,
+            "end": 1769438002347
+          }
+        },
+        {
+          "id": "prt_bfab93cb6001SyIoBOxJh9IGuQ",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab92d5b0011pYUrgUVgvYwzZ",
+          "type": "text",
+          "text": "The actual host-blocking fix is already in place:\n\n- Subdomain blocking: `HostBlocker._is_blocked` now checks the request host and all its parent domains via `urlutils.widened_hostnames`, so blocking `example.com` also blocks `sub.example.com` and deeper (while still honoring whitelist first). This is in `qutebrowser/components/hostblock.py`.\n- Hostname widening helper: `widened_hostnames()` exists in `qutebrowser/utils/urlutils.py` and is used by the blocker.\n\nTests are passing for the three files listed in `TASK.md` when I run them against this worktree’s code:\n- `source .venv/bin/activate && PYTHONPATH=\"$PWD\" QT_QPA_PLATFORM=offscreen pytest tests/unit/components/test_hostblock.py tests/unit/utils/test_urlutils.py tests/unit/config/test_configutils.py -v`\n\nIf you run the command exactly as written in `TASK.md` and it imports a different `qutebrowser` checkout (due to your environment’s `PYTHONPATH`/installed package), adding `PYTHONPATH=\"$PWD\"` ensures the tests exercise the code in this directory.",
+          "time": {
+            "start": 1769438006207,
+            "end": 1769438006207
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "msg_02b222078c78f12f0169777b3255308194b1599984a85d7854"
+            }
+          }
+        },
+        {
+          "id": "prt_bfab94be2001olykvQ5YRuS9p8",
+          "sessionID": "ses_4055082fbffeb5C2obeZ6msWnH",
+          "messageID": "msg_bfab92d5b0011pYUrgUVgvYwzZ",
+          "type": "step-finish",
+          "reason": "stop",
+          "snapshot": "9dafb342279693180f809e2a5b5c9d887a6338d9",
+          "cost": 0,
+          "tokens": {
+            "input": 3499,
+            "output": 419,
+            "reasoning": 170,
+            "cache": {
+              "read": 26496,
+              "write": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
