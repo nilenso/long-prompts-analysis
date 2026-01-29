@@ -1,8 +1,8 @@
 # Codex CLI vs Claude Code on autonomy
 
-I spent some time studying the system prompts of coding agent harnesses like [Codex CLI](https://github.com/openai/codex/blob/main/codex-rs/core/gpt_5_2_prompt.md) and [Claude Code](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code-2025-11-1.md). These prompts reveal the priorities, values, and scars of their products. They’re both only a few pages long, and are worth reading in full, especially if you use them every day. It is a more grounded approach to understand these products, compared to a vibe based analysis you might see on your timeline.
+I spent some time studying the system prompts of coding agent harnesses like [Codex CLI](https://github.com/openai/codex/blob/main/codex-rs/core/gpt_5_2_prompt.md) and [Claude Code](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code-2025-11-1.md). These prompts reveal the priorities, values, and scars of their products. They’re both only a few pages long and are worth reading in full, especially if you use them every day. It is a more grounded approach to understand these products, compared to a vibe-based analysis you might see on your timeline.
 
-While there are many similarities and differences between them, one of the most well perceived differences between Claude Code and Codex CLI is in **autonomy,** and in this post I’ll share what I observed. We perceive autonomous behaviour as long-running, independent, or needing less supervision and guidance. And in reading the system prompts, it is apparent that the *products make very different choices, intentionally.*
+While there are many similarities and differences between them, one of the most well perceived differences between Claude Code and Codex CLI is in **autonomy,** and in this post I’ll share what I observed. We perceive autonomous behaviour as long-running, or independent, or needing less supervision and guidance. And in reading the system prompts, it is apparent that the *products make very different choices, intentionally.*
 
 ### You are a…
 
@@ -16,7 +16,7 @@ Codex for 5.2 says it’s an `assistant`, and for 5.2-codex says it’s just a `
 
 ### Should it stop and ask questions, or keep going?
 
-Codex has a critical, and [explicit section](https://github.com/openai/codex/blob/932a5a446f42e566c0dbd3004ae2cee50cdcc0ce/codex-rs/core/gpt_5_2_prompt.md#autonomy-and-persistence) for “Autonomy and Persistence” for the non-codex models. 
+Codex has a critical and [explicit section](https://github.com/openai/codex/blob/932a5a446f42e566c0dbd3004ae2cee50cdcc0ce/codex-rs/core/gpt_5_2_prompt.md#autonomy-and-persistence) for “Autonomy and Persistence” for the non-Codex models. 
 
 > Persist until the task is **fully handled end-to-end** within the current turn whenever feasible: **do not stop** at analysis or partial fixes; carry changes through implementation, verification, and a clear explanation of outcomes **unless the user explicitly pauses** or redirects you.
 
@@ -24,7 +24,7 @@ Notice the language of `do not stop`, and `unless the user explicitly pauses`. A
 
 > You **must keep going** until the query or task is completely resolved, before ending your turn and yielding back to the user. Persist until the task is fully handled end-to-end within the current turn whenever feasible and **persevere even when function calls fail**. Only terminate your turn when you are sure that the problem is solved. **Autonomously resolve the query to the best of your ability**, using the tools available to you, before coming back to the user.
 
-If I were the model interpreting these instructions, I would interpret this as: *“I should try my best to solve the problem myself, and not yield to the user”*.
+If I were the model interpreting these instructions, I would interpret this as: *“I should try my best to solve the problem myself, and not yield to the user.”*
 
 ---
 
@@ -44,7 +44,7 @@ If I were the model, I would interpret this as “I need to be cautious, I’ll 
 
 ### Should it proactively take action, or propose a solution first?
 
-When dealing with some ambiguity on whether to write code or take actions, at the surface level it looks like they make the same choice i.e, when user asks questions, or is planning, then don’t write code. But the manner in which they make the choice is quite different.
+When dealing with some ambiguity on whether to write code or take actions, at the surface level it looks like they make the same choice i.e., when user asks questions, or is planning, then don’t write code. But the manner in which they make the choice is quite different.
 
 Codex’s prompt encourages the model to be **bold** about writing code:
 
@@ -94,7 +94,7 @@ And Cursor CLI seems to take a similar route to Codex, giving the agent full aut
 
 ### It is very likely that Codex models are RL’d on this behaviour
 
-In the [5.2-codex model](https://github.com/openai/codex/blob/932a5a446f42e566c0dbd3004ae2cee50cdcc0ce/codex-rs/core/gpt-5.2-codex_prompt.md)’s prompt, the sections around autonomy, ambition, etc… are all gone. And its prompt is only half the size of prompt for GPT-5.2. And the codex model release notes mention that it is made for [long running tasks](https://openai.com/index/gpt-5-1-codex-max/), which hints at autonomy being baked in.
+In the [5.2-codex model](https://github.com/openai/codex/blob/932a5a446f42e566c0dbd3004ae2cee50cdcc0ce/codex-rs/core/gpt-5.2-codex_prompt.md)’s prompt, the sections around autonomy, ambition, etc. are all gone. And its prompt is only half the size of prompt for GPT-5.2. And the codex model release notes mention that it is made for [long-running tasks](https://openai.com/index/gpt-5-1-codex-max/), which hints at autonomy being baked in.
 
 Any customisation through model post-training is opaque to end users, unfortunately.
 
