@@ -103,7 +103,9 @@ Any customisation through model post-training is opaque to end users, unfortunat
 
 All this is my interpretation, of course, and I can’t know what parts of the system prompt get more attention during inference. From my experience in prompting these models though, I feel like they pick up on the general theme of instructions given the context, reading in between the words and filling the gaps where the words aren’t present, in order to interpret the author’s intentions. I guess I’m doing the same thing here.
 
-1. System prompts are used to steer models into different behaviours. It *is* difficult to pull apart the model’s behaviour into prompt-based and training-based, so the extent of steer-ability is somewhat unknown. However, I’ve seen observable differences when using Claude Code with Codex’s system prompt. 
+From the analysis in this post, Codex CLI optimizes for task completion, and Claude Code optimizes for user alignment and consent. But my take-aways are broader:
+
+1. System prompts are used to steer models into different behaviours. It *is* difficult to pull apart the model’s behaviour into prompt-based and training-based, so the extent of steer-ability is somewhat unknown. However, for example, I’ve seen observable differences when using Claude Code with Codex’s system prompt. I will look to prove this empirically.
 2. While the models, harnesses, and tools might evolve, it appears to me as though the products themselves are differently positioned, and possibly headed in different directions. At the very least, they operate with different philosophies of what a coding agent should do.
 3. If you want to understand and wield your AI tools better, read their system prompts.
 
