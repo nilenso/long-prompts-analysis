@@ -1,6 +1,6 @@
 # Codex CLI vs Claude Code on autonomy
 
-While working on an analysis of various long prompts with [Drew Breunig](https://x.com/dbreunig), I spent some time studying the system prompts of coding agent harnesses like [Codex CLI](https://github.com/openai/codex/blob/main/codex-rs/core/gpt_5_2_prompt.md) and [Claude Code](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code-2025-11-1.md). These prompts reveal the priorities, values, and scars of their products. They’re both only a few pages long, and are worth reading in full, especially if you use them every day. It is a more grounded approach to understand these products, compared to a vibe based analysis you might see on your timeline.
+I spent some time studying the system prompts of coding agent harnesses like [Codex CLI](https://github.com/openai/codex/blob/main/codex-rs/core/gpt_5_2_prompt.md) and [Claude Code](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code-2025-11-1.md). These prompts reveal the priorities, values, and scars of their products. They’re both only a few pages long, and are worth reading in full, especially if you use them every day. It is a more grounded approach to understand these products, compared to a vibe based analysis you might see on your timeline.
 
 While there are many similarities and differences between them, one of the most well perceived differences between Claude Code and Codex CLI is in **autonomy,** and in this post I’ll share what I observed. We perceive autonomous behaviour as long-running, independent, or needing less supervision and guidance. And in reading the system prompts, it is apparent that the *products make very different choices, intentionally.*
 
@@ -107,3 +107,7 @@ All this is my interpretation of course, and I can’t know what parts of the sy
 1. System prompts are used to steer models into different behaviours. It *is* difficult to pull apart the model’s behaviour into prompt-based and training-based, so the extent of steer-ability is somewhat unknown. However, I’ve seen observable differences in using Claude Code with Codex’s system prompt. 
 2. While the models, harnesses, and tools might evolve, it appears to me as though the products themselves are differently positioned, and possibly headed in different directions. At the very least, they operate with different philosophies of what a coding agent should do.
 3. If you want to understand and wield your AI tools better, read their system prompts.
+
+### Footnote:
+
+My analysis here is a side-effect of a study on long prompts that I’m doing with Drew Breunig. He has been instrumental in giving it direction, and in encouraging me. We will have more to share soon.
