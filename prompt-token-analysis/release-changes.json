@@ -1,0 +1,311 @@
+[
+  {
+    "model": "o3 & o4-mini",
+    "release_date": "2025-04-16",
+    "vendor": "openai",
+    "changes": []
+  },
+  {
+    "model": "GPT-4.1 & GPT-4.1 mini",
+    "release_date": "2025-05-14",
+    "vendor": "openai",
+    "changes": [
+      {
+        "prompt_name": "ts-agent-loop",
+        "before_version": "2025-04-22_a30e79b76",
+        "after_version": "2025-05-14_678f0dbfe",
+        "before_tokens": 1085,
+        "after_tokens": 1011,
+        "token_delta": -74,
+        "lines_added": 3,
+        "lines_removed": 15,
+        "summary": "3 lines added; 15 lines removed"
+      },
+      {
+        "prompt_name": "prompt",
+        "before_version": "2025-04-24_31d0d7a30",
+        "after_version": "2025-07-31_6ce0a5875",
+        "before_tokens": 1332,
+        "after_tokens": 1584,
+        "token_delta": 252,
+        "lines_added": 9,
+        "lines_removed": 0,
+        "summary": "6 lines added"
+      }
+    ]
+  },
+  {
+    "model": "Claude Opus 4 & Claude Sonnet 4",
+    "release_date": "2025-05-22",
+    "vendor": "anthropic",
+    "changes": []
+  },
+  {
+    "model": "o3-pro",
+    "release_date": "2025-06-10",
+    "vendor": "openai",
+    "changes": [
+      {
+        "prompt_name": "prompt",
+        "before_version": "2025-04-24_31d0d7a30",
+        "after_version": "2025-07-31_6ce0a5875",
+        "before_tokens": 1332,
+        "after_tokens": 1584,
+        "token_delta": 252,
+        "lines_added": 9,
+        "lines_removed": 0,
+        "summary": "6 lines added"
+      }
+    ]
+  },
+  {
+    "model": "Claude Opus 4.1",
+    "release_date": "2025-08-05",
+    "vendor": "anthropic",
+    "changes": [
+      {
+        "prompt_name": "claude-code",
+        "before_version": "1.0.68",
+        "after_version": "1.0.69",
+        "before_tokens": 12558,
+        "after_tokens": 12546,
+        "token_delta": -12,
+        "lines_added": 4,
+        "lines_removed": 13,
+        "summary": "3 lines added; 12 lines removed"
+      }
+    ]
+  },
+  {
+    "model": "gpt-oss-120b & gpt-oss-20b",
+    "release_date": "2025-08-05",
+    "vendor": "openai",
+    "changes": [
+      {
+        "prompt_name": "prompt",
+        "before_version": "2025-08-04_063083af1",
+        "after_version": "2025-08-05_d31e149cb",
+        "before_tokens": 1613,
+        "after_tokens": 2148,
+        "token_delta": 535,
+        "lines_added": 37,
+        "lines_removed": 11,
+        "summary": "Added sections: General guidelines; Task execution; Using the shell command `apply_patch` to edit files; Sandbox environment and approval instructions; Tools available; Plan updates"
+      }
+    ]
+  },
+  {
+    "model": "GPT-5",
+    "release_date": "2025-08-07",
+    "vendor": "openai",
+    "changes": [
+      {
+        "prompt_name": "prompt",
+        "before_version": "2025-08-05_d31e149cb",
+        "after_version": "2025-08-07_81b148bda",
+        "before_tokens": 2148,
+        "after_tokens": 5031,
+        "token_delta": 2883,
+        "lines_added": 279,
+        "lines_removed": 88,
+        "summary": "Added sections: How you work; Personality; Responsiveness; Preamble messages; Planning; Examples; Task execution; Testing your work; Sandbox and approvals; Ambition vs. precision; Sharing progress updates; Presenting your work and final message; Final answer structure and style guidelines; Tools; `apply_patch`; `update_plan`; Removed sections: General guidelines; Task execution; Using the shell command `apply_patch` to edit files; Sandbox environment and approval instructions; Tools available; Plan updates"
+      }
+    ]
+  },
+  {
+    "model": "GPT-5-codex",
+    "release_date": "2025-09-15",
+    "vendor": "openai",
+    "changes": [
+      {
+        "prompt_name": "prompt",
+        "before_version": "2025-09-04_bef7ed0cc",
+        "after_version": "2025-09-15_b1c291e2b",
+        "before_tokens": 4953,
+        "after_tokens": 5125,
+        "token_delta": 172,
+        "lines_added": 10,
+        "lines_removed": 0,
+        "summary": "9 lines added"
+      },
+      {
+        "prompt_name": "review",
+        "before_version": "2025-09-12_90a0fd342",
+        "after_version": "2025-10-31_f842849be",
+        "before_tokens": 1371,
+        "after_tokens": 1371,
+        "token_delta": 0,
+        "lines_added": 1,
+        "lines_removed": 1,
+        "summary": "1 lines added; 1 lines removed"
+      },
+      {
+        "prompt_name": "swiftfox",
+        "before_version": "2025-09-14_916fdc2a3",
+        "after_version": "2025-09-15_d60cbed69",
+        "before_tokens": 2175,
+        "after_tokens": 2090,
+        "token_delta": -85,
+        "lines_added": 22,
+        "lines_removed": 21,
+        "summary": "Added sections: General; Codex CLI harness, sandboxing, and approvals; Special user requests; Removed sections: Overall; CLI modes"
+      },
+      {
+        "prompt_name": "gpt-5-codex",
+        "before_version": "2025-09-14_a79705192",
+        "after_version": "2025-09-15_f037b2fd5",
+        "before_tokens": 1918,
+        "after_tokens": 2096,
+        "token_delta": 178,
+        "lines_added": 10,
+        "lines_removed": 2,
+        "summary": "10 lines added; 2 lines removed"
+      }
+    ]
+  },
+  {
+    "model": "Claude Sonnet 4.5",
+    "release_date": "2025-09-29",
+    "vendor": "anthropic",
+    "changes": [
+      {
+        "prompt_name": "claude-code",
+        "before_version": "1.0.128",
+        "after_version": "2.0.0",
+        "before_tokens": 13678,
+        "after_tokens": 12784,
+        "token_delta": -894,
+        "lines_added": 29,
+        "lines_removed": 126,
+        "summary": "Removed sections: Following conventions; Code style; MultiEdit"
+      }
+    ]
+  },
+  {
+    "model": "Claude Haiku 4.5",
+    "release_date": "2025-10-15",
+    "vendor": "anthropic",
+    "changes": [
+      {
+        "prompt_name": "claude-code",
+        "before_version": "2.0.15",
+        "after_version": "2.0.17",
+        "before_tokens": 12273,
+        "after_tokens": 12473,
+        "token_delta": 200,
+        "lines_added": 13,
+        "lines_removed": 3,
+        "summary": "12 lines added; 2 lines removed"
+      }
+    ]
+  },
+  {
+    "model": "GPT-5.1-Codex-Max",
+    "release_date": "2025-11-19",
+    "vendor": "openai",
+    "changes": [
+      {
+        "prompt_name": "prompt",
+        "before_version": "2025-09-15_b1c291e2b",
+        "after_version": "2025-12-12_26d0d822a",
+        "before_tokens": 5125,
+        "after_tokens": 5086,
+        "token_delta": -39,
+        "lines_added": 1,
+        "lines_removed": 1,
+        "summary": "1 lines added; 1 lines removed"
+      },
+      {
+        "prompt_name": "gpt-5-codex",
+        "before_version": "2025-11-17_daf77b845",
+        "after_version": "2025-12-10_e0fb3ca1d",
+        "before_tokens": 2304,
+        "after_tokens": 2294,
+        "token_delta": -10,
+        "lines_added": 3,
+        "lines_removed": 3,
+        "summary": "3 lines added; 3 lines removed"
+      },
+      {
+        "prompt_name": "gpt-5-1",
+        "before_version": "2025-11-17_daf77b845",
+        "after_version": "2025-12-10_e0fb3ca1d",
+        "before_tokens": 6018,
+        "after_tokens": 6008,
+        "token_delta": -10,
+        "lines_added": 3,
+        "lines_removed": 3,
+        "summary": "3 lines added; 3 lines removed"
+      }
+    ]
+  },
+  {
+    "model": "Claude Opus 4.5",
+    "release_date": "2025-11-24",
+    "vendor": "anthropic",
+    "changes": [
+      {
+        "prompt_name": "claude-code",
+        "before_version": "2.0.50",
+        "after_version": "2.0.51",
+        "before_tokens": 13868,
+        "after_tokens": 14645,
+        "token_delta": 777,
+        "lines_added": 101,
+        "lines_removed": 15,
+        "summary": "Added sections: EnterPlanMode"
+      }
+    ]
+  },
+  {
+    "model": "GPT-5.2",
+    "release_date": "2025-12-11",
+    "vendor": "openai",
+    "changes": [
+      {
+        "prompt_name": "prompt",
+        "before_version": "2025-09-15_b1c291e2b",
+        "after_version": "2025-12-12_26d0d822a",
+        "before_tokens": 5125,
+        "after_tokens": 5086,
+        "token_delta": -39,
+        "lines_added": 1,
+        "lines_removed": 1,
+        "summary": "1 lines added; 1 lines removed"
+      },
+      {
+        "prompt_name": "gpt-5-codex",
+        "before_version": "2025-12-10_e0fb3ca1d",
+        "after_version": "2026-01-12_87f7226cc",
+        "before_tokens": 2294,
+        "after_tokens": 1448,
+        "token_delta": -846,
+        "lines_added": 0,
+        "lines_removed": 37,
+        "summary": "Removed sections: Codex CLI harness, sandboxing, and approvals"
+      },
+      {
+        "prompt_name": "gpt-5-1",
+        "before_version": "2025-12-10_e0fb3ca1d",
+        "after_version": "2025-12-12_570eb5fe7",
+        "before_tokens": 6008,
+        "after_tokens": 5969,
+        "token_delta": -39,
+        "lines_added": 1,
+        "lines_removed": 1,
+        "summary": "1 lines added; 1 lines removed"
+      },
+      {
+        "prompt_name": "gpt-5.1-codex-max",
+        "before_version": "2025-12-10_e0fb3ca1d",
+        "after_version": "2026-01-12_87f7226cc",
+        "before_tokens": 2484,
+        "after_tokens": 1638,
+        "token_delta": -846,
+        "lines_added": 0,
+        "lines_removed": 37,
+        "summary": "Removed sections: Codex CLI harness, sandboxing, and approvals"
+      }
+    ]
+  }
+]

@@ -22,8 +22,8 @@
   .tab.active { color: #7c8aff; border-bottom-color: #7c8aff; }
   .panel { display: none; padding: 24px; }
   .panel.active { display: block; }
-  #graph-panel { height: calc(100vh - 50px); display: none; flex-direction: column; padding: 24px; }
-  #graph-panel.active { display: flex; }
+  #graph-panel { height: calc(100vh - 50px); display: none; padding: 24px; }
+  #graph-panel.active { display: flex; flex-direction: row; }
   .chart-container { flex: 1; position: relative; min-height: 0; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   thead { position: sticky; top: 0; z-index: 1; }
@@ -70,6 +70,23 @@
   #annotation-tooltip .tt-model { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
   #annotation-tooltip .tt-date { color: #888; }
   #annotation-tooltip .tt-vendor { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  #annotation-tooltip .tt-delta { margin-top: 4px; font-size: 12px; font-weight: 500; }
+  .token-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .token-badge.positive { background: #2b4c2b; color: #6bcb77; }
+  .token-badge.negative { background: #4c2b2b; color: #ff6b6b; }
+  .token-badge.neutral { background: #2a2d3a; color: #888; }
+  .model-detail-row td { padding: 0 !important; border-bottom: 1px solid #1e2130; }
+  .model-detail { background: #14161e; border-left: 3px solid #7c8aff; padding: 12px 20px; }
+  .model-detail .change-item { display: flex; gap: 16px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid #1e2130; font-size: 12px; }
+  .model-detail .change-item:last-child { border-bottom: none; }
+  .model-detail .change-prompt { color: #7c8aff; font-weight: 600; min-width: 120px; }
+  .model-detail .change-versions { color: #888; min-width: 160px; }
+  .model-detail .change-diff { color: #888; min-width: 100px; }
+  .model-detail .change-summary { color: #ccc; flex: 1; }
+  .no-changes { color: #555; font-style: italic; }
+  #graph-panel .graph-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .detail-side { width: 0; overflow-y: auto; border-left: 2px solid #2a2d3a; display: none; }
+  .detail-side.open { display: block; width: 45%; min-width: 360px; }
 </style>
 </head>
 <body>
@@ -99,8 +116,17 @@
   </div>
 </div>
 <div id="graph-panel" class="panel">
-  <div class="chart-container">
-    <canvas id="chart"></canvas>
+  <div class="graph-main">
+    <div class="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+  <div class="detail-side" id="graph-detail-side">
+    <div class="prompt-header">
+      <span class="prompt-title" id="graph-detail-title"></span>
+      <button class="prompt-close" id="graph-detail-close">&times;</button>
+    </div>
+    <div class="prompt-body" id="graph-detail-body"></div>
   </div>
 </div>
 <div id="models-panel" class="panel"></div>
@@ -113,6 +139,8 @@ const RELEASES_URL = 'model-releases.csv';
 
 let MODEL_RELEASES = [];
 let ALL_RELEASES = [];
+let releaseChanges = [];
+let eventsList = [];
 let rows = [];
 let sortCol = 1; // version
 let sortAsc = true;
@@ -142,10 +170,14 @@ function filteredModelReleases() {
 }
 
 async function init() {
-  const [tokensText, releasesText] = await Promise.all([
+  const [tokensText, releasesText, changesJson, eventsJson] = await Promise.all([
     fetch(CSV_URL).then(r => r.text()),
     fetch(RELEASES_URL).then(r => r.text()),
+    fetch('release-changes.json').then(r => r.json()).catch(() => []),
+    fetch('events/events.json').then(r => r.json()).catch(() => []),
   ]);
+  releaseChanges = changesJson;
+  eventsList = eventsJson;
 
   const lines = tokensText.trim().split('\n');
   rows = lines.slice(1).map(line => {
@@ -197,8 +229,20 @@ function setupTabs() {
     if (target) activateTab(target);
   }
 
+  // Restore vendor filter from query param
+  const params = new URLSearchParams(window.location.search);
+  const vendorParam = params.get('vendor');
+  if (vendorParam && ['both', 'anthropic', 'openai'].includes(vendorParam)) {
+    vendorFilter = vendorParam;
+    document.getElementById('vendor-filter').value = vendorFilter;
+  }
+
   document.getElementById('vendor-filter').addEventListener('change', (e) => {
     vendorFilter = e.target.value;
+    const url = new URL(window.location);
+    if (vendorFilter === 'both') url.searchParams.delete('vendor');
+    else url.searchParams.set('vendor', vendorFilter);
+    history.replaceState(null, '', url);
     renderTable();
     renderModels();
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
@@ -311,13 +355,24 @@ function renderTable() {
 function showAnnotationTooltip(canvas, event, rel, color) {
   const tt = document.getElementById('annotation-tooltip');
   const vendorLabel = rel.vendor === 'anthropic' ? 'Anthropic' : 'OpenAI';
+  // Find token deltas from releaseChanges
+  const rc = releaseChanges.find(r => r.release_date === rel.date && r.model === rel.label);
+  let deltaHtml = '';
+  if (rc && rc.changes.length > 0) {
+    const deltas = rc.changes.map(c => {
+      const sign = c.token_delta > 0 ? '+' : '';
+      const cls = c.token_delta > 0 ? 'positive' : c.token_delta < 0 ? 'negative' : 'neutral';
+      return `<span class="token-badge ${cls}">${c.prompt_name} ${sign}${c.token_delta.toLocaleString()}</span>`;
+    });
+    deltaHtml = `<div class="tt-delta">${deltas.join(' ')}</div>`;
+  }
   tt.innerHTML = `
     <div class="tt-vendor" style="color:${color}">${vendorLabel}</div>
     <div class="tt-model" style="color:${color}">${rel.label}</div>
     <div class="tt-date">${rel.date}</div>
+    ${deltaHtml}
   `;
   tt.style.display = 'block';
-  // Position near the mouse
   const x = (event.x || event.clientX) + 12;
   const y = (event.y || event.clientY) - 10;
   tt.style.left = x + 'px';
@@ -326,6 +381,32 @@ function showAnnotationTooltip(canvas, event, rel, color) {
 
 function hideAnnotationTooltip() {
   document.getElementById('annotation-tooltip').style.display = 'none';
+}
+
+async function showEventNotes(evt) {
+  const side = document.getElementById('graph-detail-side');
+  const title = document.getElementById('graph-detail-title');
+  const body = document.getElementById('graph-detail-body');
+
+  if (evt.token_delta != null) {
+    const sign = evt.token_delta > 0 ? '+' : '';
+    title.textContent = `${evt.name} (${sign}${evt.token_delta.toLocaleString()} tokens)`;
+  } else {
+    title.textContent = evt.name;
+  }
+  body.innerHTML = '<div style="color:#888; padding:16px;">Loading...</div>';
+  side.classList.add('open');
+
+  try {
+    const text = await fetch(`events/${evt.file}`).then(r => r.text());
+    body.innerHTML = marked.parse(text);
+  } catch (e) {
+    body.innerHTML = `<div style="color:#ff6b6b;">Failed to load: ${e.message}</div>`;
+  }
+}
+
+function hideEventNotes() {
+  document.getElementById('graph-detail-side').classList.remove('open');
 }
 
 function renderChart() {
@@ -374,7 +455,12 @@ function renderChart() {
 
   const annotations = {};
   const vendorColors = { anthropic: '#ff922b', openai: '#4d96ff' };
+
+  // Collect event release dates so we skip duplicate release lines
+  const eventReleaseDates = new Set(eventsList.map(e => e.release_date));
+
   releases.forEach((rel, i) => {
+    if (eventReleaseDates.has(rel.date)) return;
     const color = vendorColors[rel.vendor] || '#888';
     // Stagger label positions to reduce overlap
     const isAnthropic = rel.vendor === 'anthropic';
@@ -404,6 +490,41 @@ function renderChart() {
       }
     };
   });
+
+  // Event range annotations from events.json
+  const filteredEvents = eventsList.filter(evt => {
+    if (vendorFilter === 'both') return true;
+    return evt.vendor === vendorFilter;
+  });
+  filteredEvents.forEach((evt, i) => {
+    const color = vendorColors[evt.vendor] || '#888';
+    annotations[`event${i}`] = {
+      type: 'box',
+      xMin: evt.from_date,
+      xMax: evt.to_date,
+      backgroundColor: color + '15',
+      borderColor: color + '44',
+      borderWidth: 1,
+      borderDash: [4, 2],
+      label: {
+        display: true,
+        content: evt.name.replace(' released', ''),
+        position: { x: 'center', y: 'start' },
+        backgroundColor: color + '33',
+        color: color,
+        font: { size: 9, weight: '600' },
+        padding: { x: 4, y: 2 },
+      },
+      ...(evt.file ? {
+        click() { showEventNotes(evt); },
+        enter(ctx) { ctx.chart.canvas.style.cursor = 'pointer'; },
+        leave(ctx) { ctx.chart.canvas.style.cursor = 'default'; },
+      } : {}),
+    };
+  });
+
+  // Wire up detail close button
+  document.getElementById('graph-detail-close').onclick = hideEventNotes;
 
   chartInstance = new Chart(document.getElementById('chart'), {
     type: 'line',
@@ -475,6 +596,34 @@ function renderChart() {
   });
 }
 
+function getModelChanges(label, date) {
+  return releaseChanges.find(r => r.release_date === date && r.model === label);
+}
+
+function renderModelDetailRow(rc, colSpan) {
+  if (!rc || rc.changes.length === 0) {
+    return `<tr class="model-detail-row" style="display:none;"><td colspan="${colSpan}"><div class="model-detail"><span class="no-changes">No prompt changes detected</span></div></td></tr>`;
+  }
+  const items = rc.changes.map(c => {
+    const sign = c.token_delta > 0 ? '+' : '';
+    const cls = c.token_delta > 0 ? 'positive' : c.token_delta < 0 ? 'negative' : 'neutral';
+    return `<div class="change-item">
+      <span class="change-prompt">${c.prompt_name}</span>
+      <span class="change-versions">${c.before_version} → ${c.after_version}</span>
+      <span class="change-diff"><span class="token-badge ${cls}">${sign}${c.token_delta.toLocaleString()} tokens</span></span>
+      <span class="change-diff" style="color:#6bcb77">+${c.lines_added}</span>
+      <span class="change-diff" style="color:#ff6b6b">-${c.lines_removed}</span>
+      <span class="change-summary">${c.summary}</span>
+    </div>`;
+  }).join('');
+  return `<tr class="model-detail-row" style="display:none;"><td colspan="${colSpan}"><div class="model-detail">${items}</div></td></tr>`;
+}
+
+function totalTokenDelta(rc) {
+  if (!rc || rc.changes.length === 0) return null;
+  return rc.changes.reduce((s, c) => s + c.token_delta, 0);
+}
+
 function renderModels() {
   const releases = filteredReleases();
   const sorted = [...releases].sort((a, b) => {
@@ -482,11 +631,16 @@ function renderModels() {
     if (modelSortCol === 0) cmp = a.label.localeCompare(b.label);
     else if (modelSortCol === 1) cmp = a.date.localeCompare(b.date);
     else if (modelSortCol === 2) cmp = a.vendor.localeCompare(b.vendor);
+    else if (modelSortCol === 3) {
+      const da = totalTokenDelta(getModelChanges(a.label, a.date)) || 0;
+      const db = totalTokenDelta(getModelChanges(b.label, b.date)) || 0;
+      cmp = da - db;
+    }
     return modelSortAsc ? cmp : -cmp;
   });
 
   const panel = document.getElementById('models-panel');
-  const cols = ['Model', 'Release Date', 'Vendor'];
+  const cols = ['Model', 'Release Date', 'Vendor', 'Prompt Changes'];
   const sortClass = i => i === modelSortCol ? (modelSortAsc ? 'sorted-asc' : 'sorted-desc') : '';
   const vendorBadge = v => v === 'anthropic'
     ? '<span style="color:#ff922b">anthropic</span>'
@@ -494,6 +648,25 @@ function renderModels() {
 
   const anthropicCount = releases.filter(r => r.vendor === 'anthropic').length;
   const openaiCount = releases.filter(r => r.vendor === 'openai').length;
+
+  const colSpan = cols.length;
+  const rowsHtml = sorted.map((r, i) => {
+    const rc = getModelChanges(r.label, r.date);
+    const delta = totalTokenDelta(rc);
+    let badgeHtml = '<span class="no-changes">—</span>';
+    if (delta !== null) {
+      const sign = delta > 0 ? '+' : '';
+      const cls = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
+      const count = rc.changes.length;
+      badgeHtml = `<span class="token-badge ${cls}">${sign}${delta.toLocaleString()}</span> <span style="color:#888;font-size:11px">(${count} prompt${count !== 1 ? 's' : ''})</span>`;
+    }
+    return `<tr data-model-idx="${i}" style="cursor:pointer">
+      <td>${r.label}</td>
+      <td class="date">${r.date}</td>
+      <td>${vendorBadge(r.vendor)}</td>
+      <td>${badgeHtml}</td>
+    </tr>${renderModelDetailRow(rc, colSpan)}`;
+  }).join('');
 
   panel.innerHTML = `
     <div class="summary">
@@ -503,11 +676,7 @@ function renderModels() {
     </div>
     <table>
       <thead><tr>${cols.map((c, i) => `<th class="${sortClass(i)}" data-col="${i}">${c}</th>`).join('')}</tr></thead>
-      <tbody>${sorted.map(r => `<tr>
-        <td>${r.label}</td>
-        <td class="date">${r.date}</td>
-        <td>${vendorBadge(r.vendor)}</td>
-      </tr>`).join('')}</tbody>
+      <tbody>${rowsHtml}</tbody>
     </table>`;
 
   panel.querySelectorAll('th').forEach(th => {
@@ -516,6 +685,19 @@ function renderModels() {
       if (col === modelSortCol) modelSortAsc = !modelSortAsc;
       else { modelSortCol = col; modelSortAsc = true; }
       renderModels();
+    });
+  });
+
+  // Toggle detail rows on click
+  panel.querySelectorAll('tr[data-model-idx]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const detail = tr.nextElementSibling;
+      if (detail && detail.classList.contains('model-detail-row')) {
+        const isVisible = detail.style.display !== 'none';
+        // Collapse all others
+        panel.querySelectorAll('.model-detail-row').forEach(d => d.style.display = 'none');
+        if (!isVisible) detail.style.display = '';
+      }
     });
   });
 }

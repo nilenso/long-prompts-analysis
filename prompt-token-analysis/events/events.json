@@ -1,0 +1,115 @@
+[
+  {
+    "name": "Claude Opus 4.1 released",
+    "release_date": "2025-08-05",
+    "vendor": "anthropic",
+    "from_version": "1.0.60",
+    "to_version": "1.0.73",
+    "from_date": "2025-07-24",
+    "to_date": "2025-08-11",
+    "from_tokens": 12893,
+    "to_tokens": 13066,
+    "token_delta": 173,
+    "file": "claude-opus-4.1-released.md"
+  },
+  {
+    "name": "Claude Sonnet 4.5 released",
+    "release_date": "2025-09-29",
+    "vendor": "anthropic",
+    "from_version": "1.0.127",
+    "to_version": "2.0.2",
+    "from_date": "2025-09-26",
+    "to_date": "2025-09-30",
+    "from_tokens": 13827,
+    "to_tokens": 12877,
+    "token_delta": -950,
+    "file": "claude-sonnet-4.5-released.md"
+  },
+  {
+    "name": "Claude Haiku 4.5 released",
+    "release_date": "2025-10-15",
+    "vendor": "anthropic",
+    "from_version": "2.0.14",
+    "to_version": "2.0.22",
+    "from_date": "2025-10-10",
+    "to_date": "2025-10-17",
+    "from_tokens": 12273,
+    "to_tokens": 12956,
+    "token_delta": 683,
+    "file": "claude-haiku-4.5-released.md"
+  },
+  {
+    "name": "Claude Opus 4.5 released",
+    "release_date": "2025-11-24",
+    "vendor": "anthropic",
+    "from_version": "2.0.50",
+    "to_version": "2.0.60",
+    "from_date": "2025-11-21",
+    "to_date": "2025-12-05",
+    "from_tokens": 13868,
+    "to_tokens": 15095,
+    "token_delta": 1227,
+    "file": "claude-opus-4.5-released.md"
+  },
+  {
+    "name": "o3 & o4-mini released",
+    "release_date": "2025-04-16",
+    "vendor": "openai",
+    "from_date": "2025-04-16",
+    "to_date": "2025-04-16"
+  },
+  {
+    "name": "GPT-4.1 & GPT-4.1 mini released",
+    "release_date": "2025-05-14",
+    "vendor": "openai",
+    "from_date": "2025-05-14",
+    "to_date": "2025-05-14"
+  },
+  {
+    "name": "o3-pro released",
+    "release_date": "2025-06-10",
+    "vendor": "openai",
+    "from_date": "2025-06-10",
+    "to_date": "2025-06-10"
+  },
+  {
+    "name": "GPT-5 & OSS models released",
+    "release_date": "2025-08-07",
+    "vendor": "openai",
+    "from_date": "2025-08-04",
+    "to_date": "2025-08-12",
+    "from_tokens": 1613,
+    "to_tokens": 5129,
+    "token_delta": 3516,
+    "file": "gpt-5-and-oss-models-released.md"
+  },
+  {
+    "name": "GPT-5 Codex released",
+    "release_date": "2025-09-15",
+    "vendor": "openai",
+    "from_date": "2025-09-04",
+    "to_date": "2025-09-15",
+    "from_tokens": 4953,
+    "to_tokens": 2090,
+    "token_delta": -2863,
+    "file": "gpt-5-codex-released.md"
+  },
+  {
+    "name": "GPT-5.1-Codex-Max released",
+    "release_date": "2025-11-19",
+    "vendor": "openai",
+    "from_date": "2025-11-19",
+    "to_date": "2025-11-19"
+  },
+  {
+    "name": "GPT-5.2 released",
+    "release_date": "2025-12-11",
+    "vendor": "openai",
+    "from_date": "2025-12-11",
+    "to_date": "2025-12-12",
+    "from_tokens": 6064,
+    "to_tokens": 5451,
+    "token_delta": -613,
+    "file": "gpt-5.2-released.md"
+  }
+]
