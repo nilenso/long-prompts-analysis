@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Prompt Token Counts</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.6/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; scrollbar-color: #2a2d3a transparent; scrollbar-width: thin; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2d3a; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3d4a; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1117; color: #e0e0e0; }
+  .tabs { display: flex; background: #1a1d27; border-bottom: 2px solid #2a2d3a; }
+  .tab { padding: 12px 24px; cursor: pointer; color: #888; font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; text-decoration: none; }
+  .tab:hover { color: #bbb; }
+  .tab.active { color: #7c8aff; border-bottom-color: #7c8aff; }
+  .panel { display: none; padding: 24px; }
+  .panel.active { display: block; }
+  #graph-panel { height: calc(100vh - 50px); display: none; flex-direction: column; padding: 24px; }
+  #graph-panel.active { display: flex; }
+  .chart-container { flex: 1; position: relative; min-height: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { position: sticky; top: 0; z-index: 1; }
+  th { background: #1a1d27; color: #7c8aff; text-align: left; padding: 10px 16px; font-weight: 600; border-bottom: 2px solid #2a2d3a; cursor: pointer; user-select: none; }
+  th:hover { color: #9aa4ff; }
+  th.sorted-asc::after { content: ' \25b2'; }
+  th.sorted-desc::after { content: ' \25bc'; }
+  td { padding: 8px 16px; border-bottom: 1px solid #1e2130; }
+  tr:hover td { background: #1a1d27; }
+  .tokens { font-variant-numeric: tabular-nums; text-align: right; }
+  .version { color: #7c8aff; }
+  .date { color: #888; }
+  .summary { display: flex; gap: 32px; padding: 16px 0; margin-bottom: 16px; border-bottom: 1px solid #2a2d3a; }
+  .stat { display: flex; flex-direction: column; }
+  .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 20px; font-weight: 600; color: #e0e0e0; font-variant-numeric: tabular-nums; }
+  #table-panel.active { display: flex; height: calc(100vh - 50px); overflow: hidden; }
+  #table-panel .table-side { flex: 1; overflow-y: auto; min-width: 0; }
+  #table-panel .prompt-side { flex: 1; overflow-y: auto; min-width: 0; border-left: 2px solid #2a2d3a; display: none; }
+  #table-panel .prompt-side.open { display: block; }
+  .prompt-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #2a2d3a; position: sticky; top: 0; background: #0f1117; z-index: 2; }
+  .prompt-header .prompt-title { font-size: 13px; font-weight: 600; color: #7c8aff; }
+  .prompt-header .prompt-close { cursor: pointer; color: #888; font-size: 18px; padding: 0 4px; border: none; background: none; }
+  .prompt-header .prompt-close:hover { color: #e0e0e0; }
+  .prompt-body { padding: 16px; font-size: 13px; line-height: 1.6; }
+  .prompt-body h1, .prompt-body h2, .prompt-body h3 { color: #7c8aff; margin: 16px 0 8px; }
+  .prompt-body h1 { font-size: 18px; }
+  .prompt-body h2 { font-size: 15px; }
+  .prompt-body h3 { font-size: 13px; }
+  .prompt-body p { margin: 8px 0; }
+  .prompt-body code { background: #1a1d27; padding: 2px 5px; border-radius: 3px; font-size: 12px; }
+  .prompt-body pre { background: #1a1d27; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+  .prompt-body pre code { background: none; padding: 0; }
+  .prompt-body ul, .prompt-body ol { padding-left: 20px; margin: 8px 0; }
+  .prompt-body blockquote { border-left: 3px solid #2a2d3a; padding-left: 12px; color: #888; margin: 8px 0; }
+  tr.selected td { background: #1a1d27; border-left: 2px solid #7c8aff; }
+  tbody tr { cursor: pointer; }
+  #annotation-tooltip {
+    display: none; position: fixed; z-index: 100; pointer-events: none;
+    background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 6px;
+    padding: 8px 12px; font-size: 12px; color: #e0e0e0; max-width: 280px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  #annotation-tooltip .tt-model { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  #annotation-tooltip .tt-date { color: #888; }
+  #annotation-tooltip .tt-vendor { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <a class="tab active" href="#prompts" data-panel="table-panel">Prompts</a>
+  <a class="tab" href="#models" data-panel="models-panel">Models</a>
+  <a class="tab" href="#graph" data-panel="graph-panel">Graph</a>
+  <div style="display:flex; align-items:center; margin-left:16px; border-left:1px solid #2a2d3a; padding-left:16px;">
+    <label for="vendor-filter" style="color:#888; font-size:12px; margin-right:8px;">Vendor:</label>
+    <select id="vendor-filter" style="background:#1a1d27; color:#e0e0e0; border:1px solid #2a2d3a; border-radius:4px; padding:4px 8px; font-size:13px; cursor:pointer;">
+      <option value="both">Both</option>
+      <option value="anthropic">Anthropic</option>
+      <option value="openai">OpenAI</option>
+    </select>
+  </div>
+</div>
+
+<div id="table-panel" class="panel active">
+  <div class="table-side" id="table-side"></div>
+  <div class="prompt-side" id="prompt-side">
+    <div class="prompt-header">
+      <span class="prompt-title" id="prompt-title"></span>
+      <button class="prompt-close" id="prompt-close">&times;</button>
+    </div>
+    <div class="prompt-body" id="prompt-body"></div>
+  </div>
+</div>
+<div id="graph-panel" class="panel">
+  <div class="chart-container">
+    <canvas id="chart"></canvas>
+  </div>
+</div>
+<div id="models-panel" class="panel"></div>
+<div id="annotation-tooltip"></div>
+
+<script>
+const CSV_URL = 'cc-prompts-tokens.csv';
+
+const RELEASES_URL = 'model-releases.csv';
+
+let MODEL_RELEASES = [];
+let ALL_RELEASES = [];
+let rows = [];
+let sortCol = 1; // version
+let sortAsc = true;
+let modelSortCol = 0;
+let modelSortAsc = true;
+let vendorFilter = 'both';
+let chartInstance = null;
+
+function promptVendor(prompt_name) {
+  return prompt_name === 'claude-code' ? 'anthropic' : 'openai';
+}
+
+function filteredRows() {
+  if (vendorFilter === 'both') return rows;
+  return rows.filter(r => promptVendor(r.prompt_name) === vendorFilter);
+}
+
+function filteredReleases() {
+  if (vendorFilter === 'both') return ALL_RELEASES;
+  return ALL_RELEASES.filter(r => r.vendor === vendorFilter);
+}
+
+function filteredModelReleases() {
+  const minDate = rows.reduce((m, r) => r.release_date < m ? r.release_date : m, '9999');
+  const maxDate = rows.reduce((m, r) => r.release_date > m ? r.release_date : m, '0000');
+  return filteredReleases().filter(r => r.date >= minDate && r.date <= maxDate);
+}
+
+async function init() {
+  const [tokensText, releasesText] = await Promise.all([
+    fetch(CSV_URL).then(r => r.text()),
+    fetch(RELEASES_URL).then(r => r.text()),
+  ]);
+
+  const lines = tokensText.trim().split('\n');
+  rows = lines.slice(1).map(line => {
+    const parts = line.split(',').map(s => s.trim());
+    const [filename, version, release_date, tokens, prompt_name] = parts;
+    return { filename, version, release_date, tokens: parseInt(tokens), prompt_name };
+  });
+
+  // Parse model releases; filter to data date range
+  const relLines = releasesText.trim().split('\n');
+  const allReleases = relLines.slice(1).map(line => {
+    const lastComma = line.lastIndexOf(',');
+    const vendor = line.slice(lastComma + 1).trim();
+    const rest = line.slice(0, lastComma);
+    const secondLastComma = rest.lastIndexOf(',');
+    const date = rest.slice(secondLastComma + 1).trim();
+    const label = rest.slice(0, secondLastComma).trim();
+    return { label, date, vendor };
+  });
+
+  ALL_RELEASES = allReleases;
+  const minDate = rows.reduce((m, r) => r.release_date < m ? r.release_date : m, '9999');
+  const maxDate = rows.reduce((m, r) => r.release_date > m ? r.release_date : m, '0000');
+  MODEL_RELEASES = allReleases.filter(r => r.date >= minDate && r.date <= maxDate);
+
+  setupTabs();
+  renderTable();
+  renderChart();
+  renderModels();
+}
+
+function activateTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById(tab.dataset.panel).classList.add('active');
+}
+
+function setupTabs() {
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => activateTab(tab));
+  });
+
+  // Restore tab from hash
+  const hash = window.location.hash;
+  if (hash) {
+    const target = document.querySelector(`.tab[href="${hash}"]`);
+    if (target) activateTab(target);
+  }
+
+  document.getElementById('vendor-filter').addEventListener('change', (e) => {
+    vendorFilter = e.target.value;
+    renderTable();
+    renderModels();
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    renderChart();
+  });
+}
+
+function versionSort(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] !== pb[i]) return pa[i] - pb[i];
+  }
+  return 0;
+}
+
+function promptFilePath(row) {
+  if (row.prompt_name === 'claude-code') return `data/claude-code/${row.filename}`;
+  return `data/codex/${row.filename}`;
+}
+
+async function showPrompt(row) {
+  const side = document.getElementById('prompt-side');
+  const title = document.getElementById('prompt-title');
+  const body = document.getElementById('prompt-body');
+
+  title.textContent = `${row.filename} (${row.tokens.toLocaleString()} tokens)`;
+  body.innerHTML = '<div style="color:#888; padding:16px;">Loading...</div>';
+  side.classList.add('open');
+
+  try {
+    const text = await fetch(promptFilePath(row)).then(r => r.text());
+    body.innerHTML = marked.parse(text);
+  } catch (e) {
+    body.innerHTML = `<div style="color:#ff6b6b;">Failed to load: ${e.message}</div>`;
+  }
+
+  // Highlight selected row
+  document.querySelectorAll('#table-side tr.selected').forEach(tr => tr.classList.remove('selected'));
+  const trs = document.querySelectorAll('#table-side tbody tr');
+  trs.forEach(tr => {
+    if (tr.dataset.filename === row.filename) tr.classList.add('selected');
+  });
+}
+
+function hidePrompt() {
+  document.getElementById('prompt-side').classList.remove('open');
+  document.querySelectorAll('#table-side tr.selected').forEach(tr => tr.classList.remove('selected'));
+}
+
+function renderTable() {
+  const data = filteredRows();
+  const sorted = [...data].sort((a, b) => {
+    let cmp = 0;
+    if (sortCol === 0) cmp = a.filename.localeCompare(b.filename);
+    else if (sortCol === 1) cmp = a.version.localeCompare(b.version);
+    else if (sortCol === 2) cmp = a.release_date.localeCompare(b.release_date);
+    else if (sortCol === 3) cmp = a.tokens - b.tokens;
+    else if (sortCol === 4) cmp = a.prompt_name.localeCompare(b.prompt_name);
+    return sortAsc ? cmp : -cmp;
+  });
+
+  const total = data.reduce((s, r) => s + r.tokens, 0);
+  const min = data.length ? Math.min(...data.map(r => r.tokens)) : 0;
+  const max = data.length ? Math.max(...data.map(r => r.tokens)) : 0;
+  const avg = data.length ? Math.round(total / data.length) : 0;
+
+  const panel = document.getElementById('table-side');
+  const cols = ['Filename', 'Version', 'Release Date', 'Tokens', 'Prompt'];
+  const sortClass = i => i === sortCol ? (sortAsc ? 'sorted-asc' : 'sorted-desc') : '';
+
+  panel.innerHTML = `
+    <div class="summary">
+      <div class="stat"><span class="stat-label">Files</span><span class="stat-value">${data.length}</span></div>
+      <div class="stat"><span class="stat-label">Total Tokens</span><span class="stat-value">${total.toLocaleString()}</span></div>
+      <div class="stat"><span class="stat-label">Average</span><span class="stat-value">${avg.toLocaleString()}</span></div>
+      <div class="stat"><span class="stat-label">Min</span><span class="stat-value">${min.toLocaleString()}</span></div>
+      <div class="stat"><span class="stat-label">Max</span><span class="stat-value">${max.toLocaleString()}</span></div>
+    </div>
+    <table>
+      <thead><tr>${cols.map((c, i) => `<th class="${sortClass(i)}" data-col="${i}">${c}</th>`).join('')}</tr></thead>
+      <tbody>${sorted.map((r, idx) => `<tr data-filename="${r.filename}" data-idx="${idx}">
+        <td>${r.filename}</td>
+        <td class="version">${r.version}</td>
+        <td class="date">${r.release_date}</td>
+        <td class="tokens">${r.tokens.toLocaleString()}</td>
+        <td class="version">${r.prompt_name}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+
+  panel.querySelectorAll('th').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = parseInt(th.dataset.col);
+      if (col === sortCol) sortAsc = !sortAsc;
+      else { sortCol = col; sortAsc = true; }
+      renderTable();
+    });
+  });
+
+  panel.querySelectorAll('tbody tr').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const idx = parseInt(tr.dataset.idx);
+      showPrompt(sorted[idx]);
+    });
+  });
+
+  document.getElementById('prompt-close').onclick = hidePrompt;
+}
+
+function showAnnotationTooltip(canvas, event, rel, color) {
+  const tt = document.getElementById('annotation-tooltip');
+  const vendorLabel = rel.vendor === 'anthropic' ? 'Anthropic' : 'OpenAI';
+  tt.innerHTML = `
+    <div class="tt-vendor" style="color:${color}">${vendorLabel}</div>
+    <div class="tt-model" style="color:${color}">${rel.label}</div>
+    <div class="tt-date">${rel.date}</div>
+  `;
+  tt.style.display = 'block';
+  // Position near the mouse
+  const x = (event.x || event.clientX) + 12;
+  const y = (event.y || event.clientY) - 10;
+  tt.style.left = x + 'px';
+  tt.style.top = y + 'px';
+}
+
+function hideAnnotationTooltip() {
+  document.getElementById('annotation-tooltip').style.display = 'none';
+}
+
+function renderChart() {
+  const data = filteredRows();
+  const releases = filteredModelReleases();
+
+  // Group rows by prompt_name
+  const groups = {};
+  data.forEach(r => {
+    if (!groups[r.prompt_name]) groups[r.prompt_name] = [];
+    groups[r.prompt_name].push(r);
+  });
+  // Sort each group by date
+  Object.values(groups).forEach(g => g.sort((a, b) => a.release_date.localeCompare(b.release_date)));
+
+  const LINE_COLORS = [
+    '#7c8aff', '#ff6b6b', '#6bcb77', '#ffd93d', '#4d96ff', '#ff922b',
+    '#cc5de8', '#20c997', '#e599f7', '#74c0fc', '#ffa94d', '#a9e34b',
+  ];
+  const promptNames = Object.keys(groups).sort();
+
+  const hasOpenAI = data.some(r => r.prompt_name !== 'claude-code');
+  const hasClaude = data.some(r => r.prompt_name === 'claude-code');
+
+  const datasets = promptNames.map((name, i) => {
+    const color = LINE_COLORS[i % LINE_COLORS.length];
+    const isClaude = name === 'claude-code';
+    const points = groups[name].map(r => ({ x: r.release_date, y: r.tokens, version: r.version }));
+    let yAxisID;
+    if (isClaude) yAxisID = 'yClaude';
+    else yAxisID = 'yOpenAI';
+    return {
+      label: name,
+      data: points,
+      borderColor: color,
+      backgroundColor: color + '22',
+      fill: false,
+      pointRadius: 3,
+      pointHoverRadius: 6,
+      pointBackgroundColor: color,
+      borderWidth: 2,
+      tension: 0.1,
+      yAxisID,
+    };
+  });
+
+  const annotations = {};
+  const vendorColors = { anthropic: '#ff922b', openai: '#4d96ff' };
+  releases.forEach((rel, i) => {
+    const color = vendorColors[rel.vendor] || '#888';
+    // Stagger label positions to reduce overlap
+    const isAnthropic = rel.vendor === 'anthropic';
+    annotations[`line${i}`] = {
+      type: 'line',
+      xMin: rel.date,
+      xMax: rel.date,
+      borderColor: color + '66',
+      borderWidth: 1,
+      borderDash: [6, 4],
+      enter(ctx, event) {
+        ctx.chart.canvas.style.cursor = 'pointer';
+        showAnnotationTooltip(ctx.chart.canvas, event, rel, color);
+      },
+      leave() {
+        document.querySelector('canvas').style.cursor = 'default';
+        hideAnnotationTooltip();
+      },
+      label: {
+        display: true,
+        content: rel.label,
+        position: isAnthropic ? 'start' : 'end',
+        backgroundColor: color + '22',
+        color: color,
+        font: { size: 10, weight: '500' },
+        padding: 3,
+      }
+    };
+  });
+
+  chartInstance = new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'nearest', intersect: false },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } },
+          title: { display: true, text: 'Release Date', color: '#888' },
+          grid: { color: '#1e2130' },
+          ticks: { color: '#888' },
+        },
+        ...(() => {
+          const openaiRows = data.filter(r => r.prompt_name !== 'claude-code');
+          const claudeRows = data.filter(r => r.prompt_name === 'claude-code');
+          const axes = {};
+          if (openaiRows.length) {
+            const oMin = Math.min(...openaiRows.map(r => r.tokens));
+            const oMax = Math.max(...openaiRows.map(r => r.tokens));
+            const pad = Math.round((oMax - oMin) * 0.1) || 100;
+            axes.yOpenAI = {
+              type: 'linear',
+              position: 'left',
+              min: oMin - pad,
+              max: oMax + pad,
+              title: { display: true, text: 'OpenAI / Codex Tokens', color: '#4d96ff' },
+              grid: { color: '#1e2130' },
+              ticks: { color: '#4d96ff', callback: v => v.toLocaleString() },
+            };
+          }
+          if (claudeRows.length) {
+            const cMin = Math.min(...claudeRows.map(r => r.tokens));
+            const cMax = Math.max(...claudeRows.map(r => r.tokens));
+            const pad = Math.round((cMax - cMin) * 0.1) || 100;
+            axes.yClaude = {
+              type: 'linear',
+              display: true,
+              position: openaiRows.length ? 'right' : 'left',
+              min: cMin - pad,
+              max: cMax + pad,
+              title: { display: true, text: 'Claude Code Tokens', color: '#ff922b' },
+              grid: { drawOnChartArea: !openaiRows.length, color: '#1e2130' },
+              ticks: { color: '#ff922b', callback: v => v.toLocaleString() },
+            };
+          }
+          return axes;
+        })()
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          align: 'start',
+          labels: { color: '#ccc', usePointStyle: true, pointStyle: 'circle', padding: 16 },
+        },
+        tooltip: {
+          callbacks: {
+            title: ctx => `${ctx[0].dataset.label} — ${ctx[0].raw.version}`,
+            label: ctx => `${ctx.raw.y.toLocaleString()} tokens (${ctx.raw.x})`,
+          }
+        },
+        annotation: { annotations }
+      }
+    }
+  });
+}
+
+function renderModels() {
+  const releases = filteredReleases();
+  const sorted = [...releases].sort((a, b) => {
+    let cmp = 0;
+    if (modelSortCol === 0) cmp = a.label.localeCompare(b.label);
+    else if (modelSortCol === 1) cmp = a.date.localeCompare(b.date);
+    else if (modelSortCol === 2) cmp = a.vendor.localeCompare(b.vendor);
+    return modelSortAsc ? cmp : -cmp;
+  });
+
+  const panel = document.getElementById('models-panel');
+  const cols = ['Model', 'Release Date', 'Vendor'];
+  const sortClass = i => i === modelSortCol ? (modelSortAsc ? 'sorted-asc' : 'sorted-desc') : '';
+  const vendorBadge = v => v === 'anthropic'
+    ? '<span style="color:#ff922b">anthropic</span>'
+    : '<span style="color:#4d96ff">openai</span>';
+
+  const anthropicCount = releases.filter(r => r.vendor === 'anthropic').length;
+  const openaiCount = releases.filter(r => r.vendor === 'openai').length;
+
+  panel.innerHTML = `
+    <div class="summary">
+      <div class="stat"><span class="stat-label">Total Models</span><span class="stat-value">${releases.length}</span></div>
+      <div class="stat"><span class="stat-label" style="color:#ff922b">Anthropic</span><span class="stat-value">${anthropicCount}</span></div>
+      <div class="stat"><span class="stat-label" style="color:#4d96ff">OpenAI</span><span class="stat-value">${openaiCount}</span></div>
+    </div>
+    <table>
+      <thead><tr>${cols.map((c, i) => `<th class="${sortClass(i)}" data-col="${i}">${c}</th>`).join('')}</tr></thead>
+      <tbody>${sorted.map(r => `<tr>
+        <td>${r.label}</td>
+        <td class="date">${r.date}</td>
+        <td>${vendorBadge(r.vendor)}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+
+  panel.querySelectorAll('th').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = parseInt(th.dataset.col);
+      if (col === modelSortCol) modelSortAsc = !modelSortAsc;
+      else { modelSortCol = col; modelSortAsc = true; }
+      renderModels();
+    });
+  });
+}
+
+init();
+</script>
+</body>
+</html>
