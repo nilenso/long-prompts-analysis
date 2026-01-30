@@ -1,0 +1,14 @@
+include:
+  - prompt-token-analysis
+
+exclude:
+  - blog-draft
+  - data
+  - docs
+  - email-dump
+  - scripts
+  - swe-bench-pro-qutebrowser-tasks-analysis
+  - "*.md"
+  - "*.py"
+  - LICENSE
+  - Makefile
