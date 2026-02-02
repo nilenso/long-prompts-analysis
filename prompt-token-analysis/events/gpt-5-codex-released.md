@@ -1,3 +1,6 @@
+---
+layout: null
+---
 # GPT-5 Codex Released
 
 **Model release date:** 2025-09-15

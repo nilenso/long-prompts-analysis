@@ -8,7 +8,8 @@ exclude:
   - email-dump
   - scripts
   - swe-bench-pro-qutebrowser-tasks-analysis
-  - "*.md"
+  - context-viewer-analysis.md
+  - wat-system-prompts.md
   - "*.py"
   - LICENSE
   - Makefile

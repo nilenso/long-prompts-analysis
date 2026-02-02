@@ -1,3 +1,6 @@
+---
+layout: null
+---
 # GPT-5 and OSS Models Released
 
 **Model release dates:** gpt-oss-120b & gpt-oss-20b on 2025-08-05, GPT-5 on 2025-08-07

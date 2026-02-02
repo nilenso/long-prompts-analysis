@@ -1,3 +1,6 @@
+---
+layout: null
+---
 # Claude Sonnet 4.5 Released
 
 **Model release date:** 2025-09-29
