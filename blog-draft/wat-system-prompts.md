@@ -1,3 +1,8 @@
+**!! NOTE**
+  [DRAFT, Throwaway]
+  [I want to rewrite this with my observations rather than a list of comic quirks]
+**
+
 # Wat. System prompts edition.
 
 Behind every AI coding tool is a system prompt desperately trying to stop the model from doing something unhinged. These are real instructions, from real products, written by real engineers who had to debug real incidents. I collected the best ones.
