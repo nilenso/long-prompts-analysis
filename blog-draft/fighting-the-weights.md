@@ -8,9 +8,7 @@ Among these, are interesting instances of [fighting-the-weights](https://www.dbr
 And knowing those biases is very useful when we're using these models every day for work.
 Further, we can also come up with meaningful conjectures on why the model is biased in that specific way. And that might reveal _other_ biases.
 
-## Comments
-
-## Tool parallelism
+## Tool call parallelism
 
 Models need to be told multiple times, and forcefully to batch tool calls, or to execute them in parallel. Here are relevant extracts from various system prompts:
 
@@ -53,9 +51,13 @@ I haven't measured the resultant level of parallelism in these harnesses yet. Pe
 
 My conjectures:
 1. Batching tool calls => harness will parallelise them => efficient. Most of today's models don't quite get this. It's not in the training data, and it's likely not rewarded as a behaviour. Yet.
-2. Instructing the model (forcefully) has the intended effect, so they have some limited ability to follow that instruction. So, using the words `parallel`, `batch`, `multiple` etc in user-prompts will likely nudge the models to be more time-efficient. And the corollary would be that telling it not to parallelise might help with being token efficient at the cost of speed.
-3. OpenAI models are likely RLVR'd for parallel tool calls. Many next-generation models will also be trained this way, leading to this instruction becoming unnecessary.
-4. There isn't enough emphasis on striking a balance between reading many files in parallel and token efficiency. Currently, the balance tips in the favour of speed over token efficiency. As the token economics change over the years, the models' rewards might need rewiring, and the prompts might need re-writing.
+2. RL Environments for tool use likely do not have parallelism in tool execution. Or they don't reward that kind of efficiency. The inference-time harnesses are likely bare-bones, and just give feedback on simple things like whether the code works, does what it should.
+3. Instructing the model (forcefully) has the intended effect, so they have some limited ability to follow that instruction. So, using the words `parallel`, `batch`, `multiple` etc in user-prompts will likely nudge the models to be more time-efficient. And the corollary would be that telling it not to parallelise might help with being token efficient at the cost of speed.
+4. Newer OpenAI models are likely rewarded for parallel tool calls. Many next-generation models will also be trained this way, leading to this instruction becoming unnecessary.
+5. There isn't enough emphasis on striking a balance between reading many files in parallel and token efficiency. Currently, as per the system prompts, the balance seems to tip in the favour of speed over token efficiency. As the token economics change over the years, the models' rewards would need rewiring, and the prompts might need re-writing. So, we might actually see different model versions or adapter layers that skew the efficiency parameters differently.
+
+
+If the inference-time harnesses get more sophisticated over time, that model+harness combo is likely to be the most reliable one, and it's development is likely to be as opaque as RL in model providers. Okay, that's going too far into future-prediction territory, and is not conjecture anymore.
 
 ---
 
