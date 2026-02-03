@@ -63,33 +63,39 @@ If the inference-time harnesses get more sophisticated over time, that model+har
 
 ## Comments in code
 
-Every product seems to instruct the model NOT to add comments in code. This is a funny necessity, because most good code doesn’t have a lot of comments. But the models needing this instruction seems to suggest they have a LOT of training data that have comments, which brings (should bring) the quality of the code used in training data to question.
+Every system-prompt seems to instruct the model NOT to add comments in code. 
 
 1. Cursor CLI
+    - It has a dedicated comments section.
+        - `Do not add comments for trivial or obvious code. Where needed, keep them concise`
+        - `Add comments for complex or hard-to-understand code; explain "why" not "how"`
+        - `Never use inline comments. Comment above code lines or use language-specific docstrings for functions`
+        - `Avoid TODO comments. Implement instead`
+    - `Do not add narration comments inside code just to explain actions` - twice
     - `Do not add comments for trivial or obvious code. Where needed, keep them concise`
-    - `explain "why" not "how"`
-    - `Do not add narration comments inside code just to explain actions.`
-    - `Use meaningful variable names... Descriptive enough that comments are generally not needed`
+    - `Use meaningful variable names as described in Martin's "Clean Code": Descriptive enough that comments are generally not needed`
+
 2. Gemini CLI
-    - `Add code comments sparingly. Focus on why something is done, especially for complex logic, rather than what is done. Only add high-value comments if necessary for clarity or if requested by the user. Do not edit comments that are separate from the code you are changing. NEVER talk to the user or describe your changes through comments.`
+    - This is a part of it's core mandates: `Add code comments sparingly. Focus on why something is done, especially for complex logic, rather than what is done. Only add high-value comments if necessary for clarity or if requested by the user. Do not edit comments that are separate from the code you are changing. NEVER talk to the user or describe your changes through comments.`
+    - `Do not add explanatory comments within tool calls or code blocks unless specifically part of the required code/command itself.`
+
 3. Codex CLI
-    - `Do not add inline comments within code unless explicitly requested.`
-4. OpenHands
-    - `Write clean, efficient code with minimal comments. Avoid redundancy in comments: Do not repeat information that can be easily inferred from the code itself.`
-5. Claude Code
+    - Older versions of the system prompt had this instruction to _remove_ inline comments:
+        -  `Remove all inline comments you added as much as possible, even if they look normal. Check using \`git diff\`. Inline comments must be generally avoided, unless active maintainers of the repo, a
+fter long careful study of the code and the issue, will still misinterpret the code without the comments.`
+        - `Do not add inline comments within code unless explicitly requested.`
+    - Newer version of the system prompt has this instruction to _add_ comments sparingly:
+        - `Add succinct code comments that explain what is going on if code is not self-explanatory. You should not add comments like "Assigns the value to the variable", but a brief comment might be useful ahead of a complex code block that the user would otherwise have to spend time parsing out. Usage of these comments should be rare.`
+
+4. Claude Code
     - `Do not add comments to the code you write, unless the user asks you to, or the code is complex and requires additional context.`
+    - `Don't add docstrings, comments, or type annotations to code you didn't change. Only add comments where the logic isn't self-evident.`
+    - `Never use tools like Bash or code comments as means to communicate with the user during the session.`
 
-There’s a similar common trait to this, which is in fighting verbosity of the models in over-explaining things to the user. All tools have to explicitly instruct the model to be concise.
+Conjecture time. Why is this prompting necessary? Good code doesn't have comments right?
 
-## Quirks
-
-- Claude: `IMPORTANT**:** You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming.`
-- Claude: `Avoid using over-the-top validation or excessive praise when responding to users such as "You're absolutely right" or similar phrases.`
-- Cursor: `Refer to code changes as "edits" not "patches".`
-- Cursor: `Users love it when you organize your messages using '###' headings and '##' headings. Never use '#' headings as users find them overwhelming.`
-- Cursor: `Write HIGH-VERBOSITY code, even if you have been asked to communicate concisely with the user.`
-- Gemini: `*NEVER* talk to the user or describe your changes through comments.`
-- <more?>
-
-## Use of planning mode
-## Anti-sycophancy
+1. Models are trained to produce tokens to reason, and get more accurate answers. Models, through RL(HF/VR) have a tendency to be verbose about their answers. This capability is generic and doesn't only apply to chat, its a personality that leaks into writing code as well.
+2. Models are trained on material that tends to be comment heavy, like snippets, training manuals, notebooks, tutorials, and competitive coding solutions. And the volume of that content is significant enough to bias the weights.
+3. Models aren't rewarded for being token efficient in writing code, and aren't negatively rewarded for writing comments.
+4. Comments aren't the only aspect that's biased poorly towards writing good code. Most prompts also have instructions to write minimal code, not over-engineer, reuse existing abstractions, etc. These are also reflections of the training data.
+5. Because learning-code and professional-code tend to look very different in practice, a model that prioritises one in its training data might have very different behaviour.
