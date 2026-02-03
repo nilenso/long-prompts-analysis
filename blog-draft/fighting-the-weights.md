@@ -1,6 +1,6 @@
 [DRAFT]
 
-# What do system prompts fight the model on?
+# System prompts fighting the weights, and conjectures
 
 [This intro gets to the point, but isn't well written. Need to redo.]
 The system prompts of coding agent harnesses reveal the scars. The makers of the harnesses use the system prompts to patch up undesired behaviour, or to reinforce some desired behaviour.
