@@ -1,6 +1,3 @@
----
-layout: null
----
 # GPT-5.2 Released
 
 **Model release date:** 2025-12-11

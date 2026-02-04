@@ -1,6 +1,3 @@
----
-layout: null
----
 # Claude Opus 4.1 Released
 
 **Model release date:** 2025-08-05

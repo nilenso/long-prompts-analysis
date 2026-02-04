@@ -1,6 +1,3 @@
----
-layout: null
----
 # Claude Haiku 4.5 Released
 
 **Model release date:** 2025-10-15

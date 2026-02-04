@@ -1,0 +1,40 @@
+{
+  "info": {
+    "id": "",
+    "slug": "",
+    "version": "",
+    "projectID": "",
+    "directory": "",
+    "title": "",
+    "time": {
+      "created": 0,
+      "updated": 0
+    },
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "id": "",
+        "sessionID": "",
+        "role": "assistant",
+        "time": {
+          "created": 0
+        }
+      },
+      "parts": [
+        {
+          "id": "",
+          "sessionID": "",
+          "messageID": "",
+          "type": "text",
+          "text": "Empty"
+        }
+      ]
+    }
+  ]
+}
