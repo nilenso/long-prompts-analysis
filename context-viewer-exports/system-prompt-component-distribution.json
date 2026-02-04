@@ -1,0 +1,121 @@
+[
+  {
+    "id": "073348cd-20c5-4268-bd9f-466caf135001",
+    "filename": "google-gemini-cli-official_latest_current.txt",
+    "componentTokens": {
+      "identity": 81,
+      "code_style.conventions": 510,
+      "workflow": 2152,
+      "tools.policies.guidelines": 1133,
+      "environment.sandboxing": 304,
+      "workflow.git": 313,
+      "personality.model_steering": 725
+    },
+    "totalTokens": 5218,
+    "turnCount": 0,
+    "messageCount": 1
+  },
+  {
+    "id": "ab835da0-72ac-4d59-86fa-5e514d55b0e9",
+    "filename": "openhands-official_latest_current.txt",
+    "componentTokens": {
+      "identity": 20,
+      "personality.behavior": 70,
+      "workflow.task_management": 78,
+      "tools.policies.guidelines": 223,
+      "code_style.quality": 187,
+      "workflow.git.commits": 212,
+      "workflow.git": 98,
+      "workflow": 262,
+      "environment.security": 83,
+      "tools.advanced.integrations": 72,
+      "environment": 159,
+      "workflow.modes": 135,
+      "personality.communication": 110,
+      "tools.shell.restrictions": 113
+    },
+    "totalTokens": 1822,
+    "turnCount": 0,
+    "messageCount": 1
+  },
+  {
+    "id": "98b03c59-6685-40c7-b57c-bd7d369764f5",
+    "filename": "openai-codex-cli_na_2025-09-24.txt",
+    "componentTokens": {
+      "identity": 36,
+      "personality.communication": 63,
+      "tools.advanced.images": 5,
+      "personality.model_steering": 107,
+      "environment": 23,
+      "workflow": 447,
+      "tools.description": 83,
+      "tools.schema": 507,
+      "environment.platform": 175,
+      "personality": 67,
+      "tools.communication.notifications": 612,
+      "workflow.task_management": 752,
+      "workflow.modes": 541,
+      "environment.sandboxing": 714,
+      "personality.behavior": 187,
+      "code_style.conventions": 1117
+    },
+    "totalTokens": 5436,
+    "turnCount": 0,
+    "messageCount": 1
+  },
+  {
+    "id": "4c57bf28-2613-48ca-8568-d34f5369b770",
+    "filename": "moonshot-kimi-cli-official_latest_current.txt",
+    "componentTokens": {
+      "identity": 47,
+      "tools.policies.guidelines": 346,
+      "code_style.quality": 284,
+      "environment": 226,
+      "project_context.config_files": 116
+    },
+    "totalTokens": 1019,
+    "turnCount": 0,
+    "messageCount": 1
+  },
+  {
+    "id": "0a8f4313-a969-4e0b-85f2-80501cd5524f",
+    "filename": "cursor-agent-cli_na_2025-08-07.txt",
+    "componentTokens": {
+      "identity": 129,
+      "personality.communication": 863,
+      "workflow.task_management": 383,
+      "workflow": 72,
+      "tools.policies": 24,
+      "tools.policies.guidelines": 178,
+      "search": 151,
+      "search.examples": 386,
+      "tools.policies.model_steering": 309,
+      "code_style": 11,
+      "code_style.conventions": 382,
+      "personality.guidelines": 72,
+      "environment.platform": 49
+    },
+    "totalTokens": 3009,
+    "turnCount": 0,
+    "messageCount": 1
+  },
+  {
+    "id": "df8375b6-f4cd-48b9-9c97-ec0bcd44372a",
+    "filename": "anthropic-claude-code_na_2025-11-01.txt",
+    "componentTokens": {
+      "identity": 29,
+      "environment.security": 164,
+      "tools.policies.guidelines": 43,
+      "personality.communication": 149,
+      "personality.guidelines": 139,
+      "workflow.task_management": 573,
+      "workflow": 150,
+      "tools.policies": 479,
+      "environment.platform": 64,
+      "code_style.conventions": 225
+    },
+    "totalTokens": 2015,
+    "turnCount": 0,
+    "messageCount": 1
+  }
+]
