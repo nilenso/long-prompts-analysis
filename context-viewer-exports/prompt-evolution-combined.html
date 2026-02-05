@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Evolution - Claude Code vs Codex CLI</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #ffffff;
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #222;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .toggle-label {
+            color: #888;
+            font-size: 14px;
+        }
+        .toggle-btn {
+            background: #fff;
+            border: 1px solid #ddd;
+            color: #666;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .toggle-btn:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .toggle-btn.active {
+            background: #3CB4A4;
+            color: #fff;
+            border-color: #3CB4A4;
+            font-weight: 600;
+        }
+        .toggle-btn.claude.active {
+            background: #E54B6B;
+            border-color: #E54B6B;
+        }
+        .toggle-btn.codex.active {
+            background: #6B9ECE;
+            border-color: #6B9ECE;
+        }
+        .toggle-btn.compare.active {
+            background: #78909C;
+            border-color: #78909C;
+        }
+        .chart-container {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 500px;
+        }
+        .legend-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background: #f0f0f0;
+            color: #555;
+            font-weight: 500;
+        }
+        td {
+            color: #444;
+        }
+        tr:hover td {
+            background: #f5f5f5;
+        }
+        .total-cell {
+            font-weight: bold;
+            color: #222;
+        }
+        .chart-title {
+            text-align: center;
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prompt Evolution Comparison</h1>
+    <p class="subtitle">Token distribution across prompt versions</p>
+
+    <div class="toggle-container">
+        <button id="btnClaude" class="toggle-btn claude active">Claude Code</button>
+        <button id="btnCodex" class="toggle-btn codex">Codex CLI</button>
+        <button id="btnCompare" class="toggle-btn compare">Compare Totals</button>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-title" id="chartTitle">Claude Code Prompt Evolution (May 2025 - January 2026)</div>
+        <div class="chart-wrapper">
+            <canvas id="mainChart"></canvas>
+        </div>
+        <div class="legend-container" id="customLegend"></div>
+    </div>
+
+    <div class="chart-container" id="tableContainer">
+        <h2 style="margin-bottom: 15px; font-size: 18px;">Data Table</h2>
+        <div style="overflow-x: auto;">
+            <table id="dataTable"></table>
+        </div>
+    </div>
+
+    <script>
+        // ============ CLAUDE DATA ============
+        const claudeData = [
+            {
+                "date": "2025-05-22",
+                "label": "May 22 - v1.0.0 Initial",
+                "totalTokens": 11884,
+                "componentTokens": {
+                    "identity": 460, "personality.guidelines": 162, "personality.communication": 713, "personality.autonomy": 128,
+                    "code_style.conventions": 287, "code_style": 16, "workflow.task_management": 2804, "workflow": 269,
+                    "search.context_separation": 33, "tools.policies.guidelines": 148, "environment": 12, "environment.platform": 74,
+                    "environment.security": 137, "project_context": 123, "tools.description": 9, "tools.shell": 448,
+                    "workflow.git.commits": 821, "workflow.git": 717, "tools.schema": 217, "tools.file.edit": 1089,
+                    "tools.file.search": 583, "tools.file.directory": 187, "tools.advanced.notebooks": 555, "tools.file.read": 513,
+                    "tools.advanced.agents": 560, "tools.advanced.web": 592, "tools.file.write": 227
+                }
+            },
+            {
+                "date": "2025-07-08",
+                "label": "Jul 08 - v1.0.45",
+                "totalTokens": 12300,
+                "componentTokens": {
+                    "identity": 453, "tools.communication.notifications": 61, "workflow": 387, "personality.communication": 672,
+                    "personality.autonomy": 128, "code_style.conventions": 287, "code_style": 16, "workflow.task_management": 1357,
+                    "tools.policies.guidelines": 174, "environment": 12, "environment.platform": 60, "environment.security": 91,
+                    "tools": 2, "tools.shell": 506, "workflow.git.commits": 660, "workflow.git": 476, "tools.schema": 218,
+                    "tools.file.edit": 1215, "workflow.modes": 264, "tools.file.directory": 460, "tools.file.search": 856,
+                    "tools.advanced.notebooks": 615, "tools.file.read": 514, "tools.advanced.agents": 591, "workflow.examples": 1284,
+                    "tools.description": 1, "tools.advanced.web": 375, "search": 103, "search.context_separation": 7,
+                    "search.tool_selection": 209, "tools.file.write": 246
+                }
+            },
+            {
+                "date": "2025-07-24",
+                "label": "Jul 24 - v1.0.60 Plan Mode",
+                "totalTokens": 12830,
+                "componentTokens": {
+                    "identity": 443, "environment": 17, "workflow": 425, "personality": 6, "personality.communication": 704,
+                    "personality.autonomy": 92, "code_style.conventions": 287, "code_style": 16, "workflow.task_management": 1375,
+                    "tools.policies": 268, "environment.platform": 60, "environment.security": 100, "tools.description": 2,
+                    "tools.shell": 506, "workflow.git.commits": 660, "workflow.git": 476, "tools.schema": 425,
+                    "tools.policies.guidelines": 15, "tools.file.edit": 1213, "workflow.modes": 263, "tools.file.search": 1126,
+                    "tools.file.directory": 187, "tools.advanced.notebooks": 613, "tools.file.read": 539, "tools.advanced.agents": 1005,
+                    "workflow.examples": 1284, "tools.advanced.web": 477, "tools.file.write": 246
+                }
+            },
+            {
+                "date": "2025-08-05",
+                "label": "Aug 05 - v1.0.69 Opus 4.1",
+                "totalTokens": 12485,
+                "componentTokens": {
+                    "identity": 453, "workflow": 456, "personality.communication": 704, "personality.autonomy": 92,
+                    "code_style.conventions": 287, "code_style": 16, "workflow.task_management": 2432, "tools.usage": 179,
+                    "environment.platform": 61, "environment.security": 100, "tools": 4, "tools.shell.execution": 504,
+                    "workflow.git.commits": 660, "workflow.git": 476, "workflow.examples": 23, "tools.schema": 2861,
+                    "tools.file.edit": 233, "workflow.modes": 165, "tools.policies.guidelines": 53, "tools.description": 1804,
+                    "tools.advanced.agents": 613, "tools.policies.examples": 182, "tools.file.write": 127
+                }
+            },
+            {
+                "date": "2025-08-08",
+                "label": "Aug 08 - v1.0.72 Agents",
+                "totalTokens": 13009,
+                "componentTokens": {
+                    "identity": 443, "environment": 75, "personality.guidelines": 101, "personality.communication": 259,
+                    "personality.examples": 443, "personality.autonomy": 92, "code_style.conventions": 248, "code_style": 16,
+                    "workflow.task_management": 925, "workflow.examples": 1697, "workflow": 269, "tools.policies.guidelines": 211,
+                    "environment.platform": 61, "environment.security": 100, "code_style.examples": 39, "tools.description": 6,
+                    "tools.shell": 844, "workflow.git.commits": 660, "workflow.git": 476, "tools.shell.background": 375,
+                    "tools.file.edit": 1213, "workflow.modes": 263, "tools.file.search": 1126, "tools.file.directory": 187,
+                    "tools.advanced.notebooks": 416, "tools.file.read": 553, "tools.advanced.agents": 763, "tools.schema": 210,
+                    "tools.advanced.web": 374, "search": 110, "search.tool_selection": 208, "tools.file.write": 246
+                }
+            },
+            {
+                "date": "2025-09-25",
+                "label": "Sep 25 - v1.0.125 Pre-v2",
+                "totalTokens": 13767,
+                "componentTokens": {
+                    "identity": 330, "environment": 10, "tools.communication.notifications": 72, "personality.guidelines": 101,
+                    "tools.communication.questions": 26, "personality.communication": 698, "personality.autonomy": 92,
+                    "personality.behavior": 115, "code_style.conventions": 213, "code_style": 16, "workflow.task_management": 2736,
+                    "workflow": 269, "tools.policies.guidelines": 231, "environment.platform": 61, "environment.security": 123,
+                    "code_style.examples": 74, "tools.description": 2, "tools.shell.restrictions": 956, "workflow.git.commits": 660,
+                    "workflow.git": 476, "tools.schema": 509, "tools.shell.background": 376, "tools.file.edit": 1215,
+                    "workflow.modes": 264, "tools.file.search": 1128, "tools.advanced.notebooks": 417, "tools.file.read": 579,
+                    "tools.advanced.integrations": 219, "tools.advanced.agents": 1068, "tools.advanced.web": 485, "tools.file.write": 246
+                }
+            },
+            {
+                "date": "2025-09-29",
+                "label": "Sep 29 - v2.0.0 Sonnet 4.5",
+                "totalTokens": 12738,
+                "componentTokens": {
+                    "identity": 342, "tools.communication.notifications": 3, "tools.policies.guidelines": 405, "workflow": 165,
+                    "tools.communication.questions": 31, "personality.communication": 755, "personality.autonomy": 92,
+                    "personality.behavior": 115, "workflow.task_management": 2735, "environment": 68, "environment.security": 127,
+                    "code_style.conventions": 74, "tools.description": 16, "tools.shell": 770, "workflow.git.commits": 899,
+                    "workflow.git": 487, "tools.schema": 687, "tools.shell.background": 374, "tools.file.edit": 420,
+                    "workflow.modes": 263, "tools.file.search": 1126, "tools.advanced.notebooks": 416, "tools.file.read": 578,
+                    "tools.advanced.agents": 1067, "tools.advanced.web": 477, "tools.file.write": 246
+                }
+            },
+            {
+                "date": "2025-10-08",
+                "label": "Oct 08 - v2.0.11 Trimmed",
+                "totalTokens": 12119,
+                "componentTokens": {
+                    "identity": 20, "tools.communication.questions": 30, "tools.policies.model_steering": 327,
+                    "personality.communication": 70, "personality.behavior": 115, "workflow.task_management": 1445,
+                    "workflow": 110, "tools.usage": 347, "environment": 19, "environment.platform": 61,
+                    "environment.security": 127, "code_style.conventions": 74, "tools.description": 479,
+                    "tools.shell.execution": 837, "workflow.git.commits": 914, "workflow.git": 483, "tools.shell": 261,
+                    "tools.policies.guidelines": 4, "tools.shell.background": 374, "tools": 10, "tools.file.edit": 420,
+                    "workflow.modes": 261, "tools.file.search": 1123, "tools.advanced.notebooks": 416, "tools.file.read": 542,
+                    "tools.advanced.integrations": 385, "tools.advanced.agents": 1123, "workflow.examples": 1288,
+                    "tools.schema": 208, "tools.file.write": 246
+                }
+            },
+            {
+                "date": "2025-10-15",
+                "label": "Oct 15 - v2.0.17 Haiku 4.5",
+                "totalTokens": 12435,
+                "componentTokens": {
+                    "identity": 376, "personality.communication": 149, "personality.behavior": 115, "workflow.task_management": 2734,
+                    "workflow": 111, "tools.policies.guidelines": 676, "code_style.conventions": 74, "tools.description": 16,
+                    "tools.shell.execution": 837, "workflow.git.commits": 914, "workflow.git": 483, "tools.schema": 261,
+                    "tools.shell.background": 374, "tools.file.edit": 420, "workflow.modes": 262, "tools.file.search": 1123,
+                    "tools.advanced.notebooks": 416, "tools.file.read": 542, "tools.communication": 419,
+                    "tools.advanced.agents": 1195, "tools.advanced.web": 692, "tools.file.write": 246
+                }
+            },
+            {
+                "date": "2025-11-24",
+                "label": "Nov 24 - v2.0.51 Opus 4.5",
+                "totalTokens": 14589,
+                "componentTokens": {
+                    "identity": 355, "search.tool_selection": 340, "personality.communication": 149, "personality.behavior": 139,
+                    "workflow": 557, "workflow.task_management": 851, "tools.policies.guidelines": 715, "environment": 12,
+                    "environment.platform": 61, "environment.security": 104, "code_style.conventions": 74, "tools": 5,
+                    "tools.shell": 819, "workflow.git.commits": 914, "workflow.git.commands": 506, "tools.schema": 3180,
+                    "tools.description": 2172, "tools.file.edit": 233, "workflow.modes": 1092, "tools.usage": 1762,
+                    "tools.policies.examples": 149, "tools.advanced.web": 273, "tools.file.write": 127
+                }
+            },
+            {
+                "date": "2025-12-05",
+                "label": "Dec 05 - v2.0.60",
+                "totalTokens": 15042,
+                "componentTokens": {
+                    "identity": 233, "environment": 110, "tools.communication.questions": 30, "search.tool_selection": 165,
+                    "personality.communication": 149, "personality.behavior": 139, "workflow": 494, "workflow.task_management": 2734,
+                    "tools.policies": 573, "code_style.conventions": 74, "environment.platform": 61, "tools": 2,
+                    "tools.schema": 367, "tools.description": 20, "tools.shell.execution": 1118, "workflow.git.commits": 939,
+                    "workflow.git": 483, "tools.shell.background": 372, "tools.file.edit": 420, "workflow.modes": 1232,
+                    "tools.file.search": 1195, "tools.advanced.notebooks": 416, "tools.policies.guidelines": 7,
+                    "tools.file.read": 542, "tools.advanced": 163, "tools.conditions": 39, "tools.communication": 382,
+                    "tools.advanced.agents": 1497, "tools.advanced.web": 374, "search": 466, "tools.file.write": 246
+                }
+            },
+            {
+                "date": "2025-12-16",
+                "label": "Dec 16 - v2.0.71",
+                "totalTokens": 16009,
+                "componentTokens": {
+                    "identity": 361, "search.tool_selection": 165, "personality.communication": 201, "personality.behavior": 139,
+                    "workflow": 568, "workflow.task_management": 2660, "tools.communication.questions": 139,
+                    "tools.policies.guidelines": 583, "code_style.conventions": 74, "environment": 12, "environment.platform": 61,
+                    "tools": 2, "tools.schema": 702, "tools.shell": 2646, "tools.file.edit": 420, "workflow.modes": 1412,
+                    "tools.file.search": 1182, "tools.shell.background": 143, "tools.advanced.notebooks": 416,
+                    "tools.file.read": 542, "tools.description": 968, "tools.policies": 7, "tools.advanced.agents": 1532,
+                    "tools.advanced.web": 362, "search": 466, "tools.file.write": 246
+                }
+            },
+            {
+                "date": "2026-01-07",
+                "label": "Jan 07 - v2.1.0 Major",
+                "totalTokens": 15536,
+                "componentTokens": {
+                    "identity": 108, "workflow.modes": 1367, "tools.policies.guidelines": 229, "personality.communication": 201,
+                    "personality.behavior": 139, "workflow": 510, "workflow.task_management": 2662, "tools.communication.questions": 139,
+                    "tools.policies.model_steering": 573, "code_style.conventions": 86, "environment.platform": 60,
+                    "tools.description": 2, "tools.schema": 2124, "tools.shell": 2527, "tools.policies": 10,
+                    "tools.file.edit": 422, "tools.file.search": 1186, "tools.shell.background": 145, "tools.advanced.notebooks": 418,
+                    "tools.file.read": 544, "tools.advanced.integrations": 489, "tools.advanced.agents": 1595
+                }
+            },
+            {
+                "date": "2026-01-13",
+                "label": "Jan 13 - v2.1.6",
+                "totalTokens": 16574,
+                "componentTokens": {
+                    "identity": 273, "personality.communication": 201, "personality.behavior": 139, "workflow": 511,
+                    "workflow.task_management": 1372, "tools.communication.questions": 139, "tools.policies.guidelines": 576,
+                    "code_style.conventions": 74, "environment": 100, "environment.platform": 59, "tools.description": 6,
+                    "tools.schema": 3546, "tools.shell": 870, "workflow.git.commits": 928, "workflow.git": 490,
+                    "tools.shell.execution": 514, "tools.file.edit": 422, "workflow.modes": 976, "workflow.examples": 1805,
+                    "tools.conditions": 457, "tools.policies": 9, "tools.advanced.integrations": 370, "tools.advanced.agents": 973,
+                    "tools.policies.examples": 684, "tools.advanced.web": 832, "tools.file.write": 248
+                }
+            },
+            {
+                "date": "2026-01-29",
+                "label": "Jan 29 - v2.1.25 Latest",
+                "totalTokens": 16507,
+                "componentTokens": {
+                    "identity": 330, "environment": 15, "tools.policies.model_steering": 66, "tools.description": 743,
+                    "personality.communication": 227, "personality.behavior": 139, "workflow": 498, "workflow.task_management": 2458,
+                    "tools.communication.questions": 303, "tools.policies.guidelines": 651, "code_style.conventions": 74,
+                    "environment.platform": 60, "tools": 2, "tools.schema": 4278, "tools.shell": 2394, "tools.usage": 231,
+                    "workflow.modes": 1257, "tools.advanced.notebooks": 112, "tools.file.read": 382, "tools.advanced": 291,
+                    "tools.advanced.agents": 1305, "tools.advanced.web": 564, "tools.file.write": 127
+                }
+            }
+        ];
+
+        const claudeModelReleases = [
+            { date: '2025-05-22', label: 'Opus 4 / Sonnet 4' },
+            { date: '2025-08-05', label: 'Opus 4.1' },
+            { date: '2025-09-29', label: 'Sonnet 4.5' },
+            { date: '2025-10-15', label: 'Haiku 4.5' },
+            { date: '2025-11-24', label: 'Opus 4.5' }
+        ];
+
+        // ============ CODEX DATA ============
+        const codexData = [
+            {
+                "date": "2025-04-24",
+                "label": "Apr 24 - Initial (Pre-GPT-5)",
+                "totalTokens": 1348,
+                "componentTokens": {
+                    "environment": 71, "workflow": 725, "tools.policies.guidelines": 552
+                }
+            },
+            {
+                "date": "2025-08-05",
+                "label": "Aug 05 - Pre-GPT-5",
+                "totalTokens": 2160,
+                "componentTokens": {
+                    "identity": 152, "personality.guidelines": 231, "workflow": 777, "tools.shell": 569,
+                    "environment.sandboxing": 172, "tools.description": 259
+                }
+            },
+            {
+                "date": "2025-08-07",
+                "label": "Aug 07 - GPT-5",
+                "totalTokens": 5001,
+                "componentTokens": {
+                    "identity": 43, "environment.platform": 120, "personality.guidelines": 4107, "tools.description": 731
+                }
+            },
+            {
+                "date": "2025-09-14",
+                "label": "Sep 14 - GPT-5-Codex (Swiftfox)",
+                "totalTokens": 2166,
+                "componentTokens": {
+                    "identity": 22, "workflow.task_management": 449, "code_style.quality": 324, "tools.usage": 61,
+                    "environment.sandboxing": 713, "personality.communication": 597
+                }
+            },
+            {
+                "date": "2025-11-12",
+                "label": "Nov 12 - GPT-5.1",
+                "totalTokens": 5102,
+                "componentTokens": {
+                    "identity": 43, "environment": 120, "personality": 68, "tools.advanced.agents": 280,
+                    "tools.communication.notifications": 585, "workflow.task_management": 664, "workflow": 519,
+                    "environment.sandboxing": 692, "workflow.modes": 416, "personality.model_steering": 172,
+                    "personality.communication": 1241, "tools.policies.guidelines": 302
+                }
+            },
+            {
+                "date": "2025-11-18",
+                "label": "Nov 18 - GPT-5.1-Codex-Max (Arcticfox)",
+                "totalTokens": 2483,
+                "componentTokens": {
+                    "identity": 28, "search.tool_selection": 51, "code_style.conventions": 378, "workflow.task_management": 61,
+                    "environment.sandboxing": 860, "workflow.modes": 147, "personality.guidelines": 198, "personality.communication": 760
+                }
+            },
+            {
+                "date": "2025-12-11",
+                "label": "Dec 11 - GPT-5.2 (Robin)",
+                "totalTokens": 6023,
+                "componentTokens": {
+                    "identity": 45, "tools.description": 120, "personality.guidelines": 5257, "tools.policies.guidelines": 601
+                }
+            },
+            {
+                "date": "2025-12-18",
+                "label": "Dec 18 - GPT-5.2-Codex (Caribou)",
+                "totalTokens": 2474,
+                "componentTokens": {
+                    "identity": 28, "search.tool_selection": 51, "workflow.git": 378, "workflow.task_management": 61,
+                    "environment.sandboxing": 851, "workflow.modes": 147, "personality.guidelines": 198, "personality.communication": 760
+                }
+            }
+        ];
+
+        const codexModelReleases = [
+            { date: '2025-08-07', label: 'GPT-5' },
+            { date: '2025-09-15', label: 'GPT-5-Codex' },
+            { date: '2025-11-19', label: 'GPT-5.1-Codex-Max' },
+            { date: '2025-12-11', label: 'GPT-5.2' },
+            { date: '2025-12-18', label: 'GPT-5.2-Codex' }
+        ];
+
+        // ============ CATEGORY MAPPING ============
+        const categoryMapping = {
+            'code_style': 'Code Style', 'code_style.conventions': 'Code Style', 'code_style.quality': 'Code Style', 'code_style.examples': 'Code Style',
+            'environment': 'Environment Details', 'environment.platform': 'Environment Details', 'environment.sandboxing': 'Environment Details', 'environment.security': 'Environment Details',
+            'identity': 'Personality & Steering', 'personality': 'Personality & Steering', 'personality.behavior': 'Personality & Steering',
+            'personality.communication': 'Personality & Steering', 'personality.guidelines': 'Personality & Steering',
+            'personality.model_steering': 'Personality & Steering', 'personality.autonomy': 'Personality & Steering', 'personality.examples': 'Personality & Steering',
+            'project_context': 'Tool Descriptions & Instructions', 'project_context.config_files': 'Tool Descriptions & Instructions',
+            'tools': 'Tool Descriptions & Instructions', 'tools.advanced': 'Tool Descriptions & Instructions',
+            'tools.advanced.agents': 'Tool Descriptions & Instructions', 'tools.advanced.integrations': 'Tool Descriptions & Instructions',
+            'tools.advanced.notebooks': 'Tool Descriptions & Instructions', 'tools.advanced.web': 'Tool Descriptions & Instructions',
+            'tools.communication': 'Tool Descriptions & Instructions', 'tools.communication.notifications': 'Tool Descriptions & Instructions',
+            'tools.communication.questions': 'Tool Descriptions & Instructions', 'tools.conditions': 'Tool Descriptions & Instructions',
+            'tools.description': 'Tool Descriptions & Instructions', 'tools.file.directory': 'Tool Descriptions & Instructions',
+            'tools.file.edit': 'Tool Descriptions & Instructions', 'tools.file.read': 'Tool Descriptions & Instructions',
+            'tools.file.search': 'Tool Descriptions & Instructions', 'tools.file.write': 'Tool Descriptions & Instructions',
+            'tools.policies': 'Tool Descriptions & Instructions', 'tools.policies.examples': 'Tool Descriptions & Instructions',
+            'tools.policies.guidelines': 'Tool Descriptions & Instructions', 'tools.policies.model_steering': 'Tool Descriptions & Instructions',
+            'tools.schema': 'Tool Descriptions & Instructions', 'tools.shell': 'Tool Descriptions & Instructions',
+            'tools.shell.background': 'Tool Descriptions & Instructions', 'tools.shell.execution': 'Tool Descriptions & Instructions',
+            'tools.shell.restrictions': 'Tool Descriptions & Instructions', 'tools.usage': 'Tool Descriptions & Instructions',
+            'search': 'Tool Descriptions & Instructions', 'search.context_separation': 'Tool Descriptions & Instructions',
+            'search.tool_selection': 'Tool Descriptions & Instructions',
+            'workflow': 'Workflow Guidance', 'workflow.examples': 'Workflow Guidance', 'workflow.git': 'Workflow Guidance',
+            'workflow.git.commands': 'Workflow Guidance', 'workflow.git.commits': 'Workflow Guidance',
+            'workflow.modes': 'Workflow Guidance', 'workflow.task_management': 'Workflow Guidance'
+        };
+
+        const colors = {
+            'Code Style': '#6B9ECE',
+            'Environment Details': '#3CB4A4',
+            'Personality & Steering': '#E54B6B',
+            'Tool Descriptions & Instructions': '#78909C',
+            'Workflow Guidance': '#F4A156',
+            'Other': '#9CA3AF'
+        };
+
+        const components = ['Code Style', 'Environment Details', 'Personality & Steering', 'Tool Descriptions & Instructions', 'Workflow Guidance'];
+
+        // Transform data
+        function simplifyData(data) {
+            return data.map(d => {
+                const simplifiedTokens = {};
+                Object.entries(d.componentTokens).forEach(([key, value]) => {
+                    const category = categoryMapping[key] || 'Other';
+                    simplifiedTokens[category] = (simplifiedTokens[category] || 0) + value;
+                });
+                return { ...d, componentTokens: simplifiedTokens };
+            });
+        }
+
+        const claudeSimplified = simplifyData(claudeData);
+        const codexSimplified = simplifyData(codexData);
+
+        // Chart instance
+        let chart = null;
+        let currentView = 'claude';
+
+        // Build annotations
+        function buildAnnotations(releases, color) {
+            const annotations = {};
+            releases.forEach((release, i) => {
+                annotations[`line${i}`] = {
+                    type: 'line',
+                    xMin: release.date,
+                    xMax: release.date,
+                    borderColor: color,
+                    borderWidth: 2,
+                    borderDash: [6, 4],
+                    label: {
+                        display: true,
+                        content: release.label,
+                        position: 'start',
+                        backgroundColor: color + 'CC',
+                        color: '#fff',
+                        font: { size: 10, weight: 'bold' },
+                        padding: 3,
+                        yAdjust: -10
+                    }
+                };
+            });
+            return annotations;
+        }
+
+        // Build stacked datasets
+        function buildStackedDatasets(data) {
+            const datasets = components.map((comp) => ({
+                label: comp,
+                data: data.map(d => ({ x: d.date, y: d.componentTokens[comp] || 0 })),
+                backgroundColor: colors[comp],
+                borderColor: colors[comp],
+                borderWidth: 1,
+                fill: true,
+                tension: 0,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                stack: 'components'
+            }));
+
+            datasets.push({
+                label: 'Total Tokens',
+                data: data.map(d => ({ x: d.date, y: d.totalTokens })),
+                backgroundColor: 'transparent',
+                borderColor: '#333333',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                fill: false,
+                tension: 0,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                pointBackgroundColor: '#333333',
+                stack: 'total',
+                order: -1
+            });
+
+            return datasets;
+        }
+
+        // Build comparison datasets
+        function buildCompareDatasets() {
+            return [
+                {
+                    label: 'Claude Code',
+                    data: claudeSimplified.map(d => ({ x: d.date, y: d.totalTokens })),
+                    backgroundColor: 'transparent',
+                    borderColor: '#E54B6B',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: '#E54B6B'
+                },
+                {
+                    label: 'Codex CLI',
+                    data: codexSimplified.map(d => ({ x: d.date, y: d.totalTokens })),
+                    backgroundColor: 'transparent',
+                    borderColor: '#6B9ECE',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: '#6B9ECE'
+                }
+            ];
+        }
+
+        // Build combined annotations for compare view
+        function buildCombinedAnnotations() {
+            const annotations = {};
+            claudeModelReleases.forEach((release, i) => {
+                annotations[`claude${i}`] = {
+                    type: 'line',
+                    xMin: release.date,
+                    xMax: release.date,
+                    borderColor: '#E54B6B',
+                    borderWidth: 2,
+                    borderDash: [6, 4],
+                    label: {
+                        display: true,
+                        content: release.label,
+                        position: 'start',
+                        backgroundColor: '#E54B6BCC',
+                        color: '#fff',
+                        font: { size: 9, weight: 'bold' },
+                        padding: 2,
+                        yAdjust: -10
+                    }
+                };
+            });
+            codexModelReleases.forEach((release, i) => {
+                annotations[`codex${i}`] = {
+                    type: 'line',
+                    xMin: release.date,
+                    xMax: release.date,
+                    borderColor: '#6B9ECE',
+                    borderWidth: 2,
+                    borderDash: [6, 4],
+                    label: {
+                        display: true,
+                        content: release.label,
+                        position: 'end',
+                        backgroundColor: '#6B9ECECC',
+                        color: '#fff',
+                        font: { size: 9, weight: 'bold' },
+                        padding: 2,
+                        yAdjust: 10
+                    }
+                };
+            });
+            return annotations;
+        }
+
+        // Create chart
+        function createChart(view) {
+            if (chart) chart.destroy();
+
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            let datasets, annotations, title;
+
+            if (view === 'claude') {
+                datasets = buildStackedDatasets(claudeSimplified);
+                annotations = buildAnnotations(claudeModelReleases, '#E54B6B');
+                title = 'Claude Code Prompt Evolution (May 2025 - January 2026)';
+            } else if (view === 'codex') {
+                datasets = buildStackedDatasets(codexSimplified);
+                annotations = buildAnnotations(codexModelReleases, '#6B9ECE');
+                title = 'Codex CLI Prompt Evolution (April - December 2025)';
+            } else {
+                datasets = buildCompareDatasets();
+                annotations = buildCombinedAnnotations();
+                title = 'Total Tokens Comparison: Claude Code vs Codex CLI';
+            }
+
+            document.getElementById('chartTitle').textContent = title;
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#fff',
+                            titleColor: '#222',
+                            bodyColor: '#444',
+                            borderColor: '#ddd',
+                            borderWidth: 1,
+                            padding: 12,
+                            callbacks: {
+                                title: function(context) {
+                                    if (view === 'compare') return context[0].raw.x;
+                                    const data = view === 'claude' ? claudeSimplified : codexSimplified;
+                                    const idx = data.findIndex(d => d.date === context[0].raw.x);
+                                    return idx >= 0 ? data[idx].label : context[0].label;
+                                },
+                                label: function(context) {
+                                    const val = context.raw.y;
+                                    if (val === 0) return null;
+                                    return `${context.dataset.label}: ${val.toLocaleString()} tokens`;
+                                }
+                            }
+                        },
+                        annotation: { annotations }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } },
+                            grid: { color: '#e0e0e0' },
+                            ticks: { color: '#666' }
+                        },
+                        y: {
+                            stacked: view !== 'compare',
+                            grid: { color: '#e0e0e0' },
+                            ticks: { color: '#666', callback: v => v.toLocaleString() },
+                            title: { display: true, text: 'Tokens', color: '#666' }
+                        }
+                    }
+                }
+            });
+
+            updateLegend(view);
+            updateTable(view);
+            currentView = view;
+        }
+
+        // Update legend
+        function updateLegend(view) {
+            const container = document.getElementById('customLegend');
+            if (view === 'compare') {
+                container.innerHTML = `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #E54B6B;"></div>
+                        <span>Claude Code</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #6B9ECE;"></div>
+                        <span>Codex CLI</span>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #333; border: 2px dashed #333;"></div>
+                        <span>Total Tokens</span>
+                    </div>
+                `;
+                components.forEach(comp => {
+                    container.innerHTML += `
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: ${colors[comp]};"></div>
+                            <span>${comp}</span>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        // Update table
+        function updateTable(view) {
+            const table = document.getElementById('dataTable');
+            const tableContainer = document.getElementById('tableContainer');
+
+            if (view === 'compare') {
+                tableContainer.style.display = 'none';
+                return;
+            }
+
+            tableContainer.style.display = 'block';
+            const data = view === 'claude' ? claudeSimplified : codexSimplified;
+
+            let html = '<thead><tr><th>Version</th><th>Total</th>';
+            components.forEach(c => html += `<th>${c}</th>`);
+            html += '</tr></thead><tbody>';
+
+            data.forEach(d => {
+                html += `<tr><td>${d.label}</td><td class="total-cell">${d.totalTokens.toLocaleString()}</td>`;
+                components.forEach(c => {
+                    const val = d.componentTokens[c] || 0;
+                    html += `<td>${val > 0 ? val.toLocaleString() : '-'}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+
+        // Toggle handlers
+        document.getElementById('btnClaude').addEventListener('click', function() {
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            createChart('claude');
+        });
+
+        document.getElementById('btnCodex').addEventListener('click', function() {
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            createChart('codex');
+        });
+
+        document.getElementById('btnCompare').addEventListener('click', function() {
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            createChart('compare');
+        });
+
+        // Initialize
+        createChart('claude');
+    </script>
+</body>
+</html>
