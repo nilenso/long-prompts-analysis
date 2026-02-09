@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWE Tasks - Average Token Distribution (Waffle Charts)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    padding: 32px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #222;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 28px;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px 20px;
+    margin-bottom: 32px;
+    padding: 16px 24px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #444;
+    white-space: nowrap;
+  }
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .charts-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .chart-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 20px 24px 24px;
+    width: 320px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .chart-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #222;
+  }
+  .chart-stats {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+  .chart-stats span {
+    display: inline-block;
+    margin-right: 12px;
+  }
+  .chart-stats .stat-value {
+    font-weight: 600;
+    color: #555;
+  }
+  .waffle-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 24px);
+    gap: 2px;
+  }
+  .waffle-cell {
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: help;
+    position: relative;
+  }
+  .waffle-cell:hover {
+    outline: 2px solid #333;
+    outline-offset: 0px;
+    z-index: 1;
+  }
+  .breakdown {
+    margin-top: 14px;
+    font-size: 11px;
+    color: #666;
+    line-height: 1.8;
+  }
+  .breakdown-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .breakdown-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .breakdown-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .breakdown-value {
+    font-weight: 600;
+    color: #444;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<h1>SWE Tasks: Average Token Distribution by Agent</h1>
+<p class="subtitle">Each square represents ~1% of total average tokens. Hover for details. Categories sorted by highest first.</p>
+
+<div class="legend" id="legend"></div>
+
+<div class="charts-container" id="charts"></div>
+
+<script>
+const CATEGORY_COLORS = {
+  "understand": "#4E79A7",
+  "explore":    "#E15759",
+  "plan":       "#FF9DA7",
+  "implement":  "#AF7AA1",
+  "verify":     "#8CD17D",
+  "complete":   "#B6992D",
+  "analyze":    "#499894"
+};
+
+const CATEGORIES = ["understand", "explore", "plan", "implement", "verify", "complete", "analyze"];
+
+const AGENTS = [
+  {
+    id: "opus_empty",
+    name: "Opus + Empty Prompt",
+    avgTokens: 45194,
+    avgTurns: 1.0,
+    avgMessages: 52.0,
+    validTasks: 10,
+    totalTasks: 10,
+    componentTokens: {
+      "understand.read-requirements": 673, "understand.read-tests": 11765,
+      "explore.search-files": 303, "explore.read-source": 10737, "explore.read-section": 1405,
+      "explore.search-keywords": 692, "explore.read-tests": 42,
+      "plan.update-tasks": 898,
+      "implement.apply-patch": 2969, "implement.write-code": 173,
+      "verify.run-tests-verify": 5666, "verify.run-tests-specific": 2791,
+      "complete.update-tasks": 607,
+      "analyze.run-tests-diagnostic": 5838, "analyze.check-environment": 637
+    }
+  },
+  {
+    id: "opus_claude",
+    name: "Opus + Claude Prompt",
+    avgTokens: 38433,
+    avgTurns: 1.0,
+    avgMessages: 53.1,
+    validTasks: 10,
+    totalTasks: 10,
+    componentTokens: {
+      "understand.read-requirements": 539, "understand.read-tests": 10319,
+      "explore.search-files": 181, "explore.read-source": 11212, "explore.read-section": 956,
+      "explore.search-keywords": 284, "explore.delegate-exploration": 2, "explore.read-tests": 4,
+      "plan.update-tasks": 699,
+      "implement.apply-patch": 2090, "implement.write-code": 82,
+      "verify.run-tests-verify": 4937, "verify.run-tests-specific": 2863,
+      "complete.update-tasks": 682,
+      "analyze.run-tests-diagnostic": 2966, "analyze.check-environment": 619
+    }
+  },
+  {
+    id: "opus_codex",
+    name: "Opus + Codex Prompt",
+    avgTokens: 42335,
+    avgTurns: 1.0,
+    avgMessages: 48.6,
+    validTasks: 10,
+    totalTasks: 10,
+    componentTokens: {
+      "understand.read-requirements": 535, "understand.read-tests": 11588,
+      "explore.search-files": 899, "explore.read-source": 12394, "explore.read-section": 936,
+      "explore.search-keywords": 686, "explore.read-tests": 119,
+      "plan.update-tasks": 356,
+      "implement.apply-patch": 2764, "implement.write-code": 46,
+      "verify.run-tests-verify": 4979, "verify.run-tests-specific": 4335,
+      "complete.update-tasks": 336,
+      "analyze.run-tests-diagnostic": 1807, "analyze.check-environment": 554
+    }
+  },
+  {
+    id: "gpt_claude",
+    name: "GPT + Claude Prompt",
+    avgTokens: 74350,
+    avgTurns: 1.0,
+    avgMessages: 133.3,
+    validTasks: 6,
+    totalTasks: 10,
+    componentTokens: {
+      "understand.read-requirements": 510, "understand.read-tests": 2631,
+      "explore.search-files": 2560, "explore.read-source": 15951, "explore.read-section": 8820,
+      "explore.search-keywords": 4526, "explore.delegate-exploration": 754,
+      "plan.update-tasks": 1142,
+      "implement.apply-patch": 6721, "implement.create-file": 85,
+      "verify.run-tests-verify": 1650, "verify.run-tests-specific": 20034,
+      "complete.update-tasks": 552,
+      "analyze.run-tests-diagnostic": 6953, "analyze.check-environment": 1463
+    }
+  },
+  {
+    id: "gpt_codex",
+    name: "GPT + Codex Prompt",
+    avgTokens: 56243,
+    avgTurns: 1.0,
+    avgMessages: 84.7,
+    validTasks: 7,
+    totalTasks: 10,
+    componentTokens: {
+      "understand.read-requirements": 471, "understand.read-tests": 4931,
+      "explore.search-files": 1599, "explore.read-source": 15008, "explore.read-section": 2720,
+      "explore.search-keywords": 915, "explore.delegate-exploration": 63,
+      "plan.update-tasks": 35,
+      "implement.apply-patch": 4972, "implement.create-file": 1524,
+      "verify.run-tests-verify": 1972, "verify.run-tests-specific": 14230,
+      "complete.update-tasks": 166,
+      "analyze.run-tests-diagnostic": 6542, "analyze.check-environment": 1095
+    }
+  }
+];
+
+// Pre-compute category totals
+AGENTS.forEach(a => {
+  a.categoryTotals = {};
+  CATEGORIES.forEach(cat => {
+    a.categoryTotals[cat] = Object.entries(a.componentTokens)
+      .filter(([k]) => k.startsWith(cat + "."))
+      .reduce((sum, [, v]) => sum + v, 0);
+  });
+});
+
+function fmt(n) { return Math.round(n).toLocaleString(); }
+
+// --- Waffle square allocation ---
+function allocateSquares(entries, total) {
+  const TOTAL_SQUARES = 100;
+  const sorted = entries.filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]);
+
+  const allocs = sorted.map(([key, val]) => {
+    const exact = (val / total) * TOTAL_SQUARES;
+    return { key, val, exact, count: Math.floor(exact), remainder: exact - Math.floor(exact) };
+  });
+  allocs.forEach(a => { if (a.count === 0) a.count = 1; });
+  let allocated = allocs.reduce((s, a) => s + a.count, 0);
+
+  if (allocated < TOTAL_SQUARES) {
+    const byRem = [...allocs].sort((a, b) => b.remainder - a.remainder);
+    let i = 0;
+    while (allocated < TOTAL_SQUARES) { byRem[i % byRem.length].count++; allocated++; i++; }
+  } else if (allocated > TOTAL_SQUARES) {
+    const byExact = [...allocs].sort((a, b) => a.exact - b.exact);
+    let i = 0;
+    while (allocated > TOTAL_SQUARES) {
+      if (byExact[i % byExact.length].count > 1) { byExact[i % byExact.length].count--; allocated--; }
+      i++; if (i > allocs.length * 3) break;
+    }
+  }
+
+  const squares = [];
+  allocs.forEach(a => { for (let i = 0; i < a.count; i++) squares.push(a.key); });
+  return squares;
+}
+
+function renderCard(agent) {
+  const total = agent.avgTokens;
+  const catEntries = CATEGORIES.map(cat => [cat, agent.categoryTotals[cat]]);
+  const squares = allocateSquares(catEntries, total);
+
+  let waffleHtml = '<div class="waffle-grid">';
+  squares.forEach(key => {
+    const val = agent.categoryTotals[key];
+    const pct = ((val / total) * 100).toFixed(1);
+    waffleHtml += `<div class="waffle-cell" style="background:${CATEGORY_COLORS[key]}" title="${key.toUpperCase()}: ${fmt(val)} tokens (${pct}%)"></div>`;
+  });
+  waffleHtml += '</div>';
+
+  const sorted = [...catEntries].filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  let breakdownHtml = '<div class="breakdown">';
+  sorted.forEach(([key, val]) => {
+    const pct = ((val / total) * 100).toFixed(1);
+    breakdownHtml += `<div class="breakdown-item"><div class="breakdown-swatch" style="background:${CATEGORY_COLORS[key]}"></div><span class="breakdown-label">${key.toUpperCase()}</span><span class="breakdown-value">${fmt(val)} (${pct}%)</span></div>`;
+  });
+  breakdownHtml += '</div>';
+
+  return `<div class="chart-card">
+  <div class="chart-title">${agent.name}</div>
+  <div class="chart-stats">
+    <span>Avg tokens: <span class="stat-value">${fmt(agent.avgTokens)}</span></span>
+    <span>Avg turns: <span class="stat-value">${agent.avgTurns.toFixed(1)}</span></span>
+    <span>Avg messages: <span class="stat-value">${agent.avgMessages.toFixed(1)}</span></span>
+    <br><span>Valid tasks: <span class="stat-value">${agent.validTasks}/${agent.totalTasks}</span></span>
+  </div>
+  ${waffleHtml}
+  ${breakdownHtml}
+</div>`;
+}
+
+// Build legend
+document.getElementById("legend").innerHTML = CATEGORIES.map(c =>
+  `<div class="legend-item"><div class="legend-swatch" style="background:${CATEGORY_COLORS[c]}"></div>${c.toUpperCase()}</div>`
+).join("");
+
+// Sort by largest category total descending, render
+const sorted = [...AGENTS].sort((a, b) => {
+  const aMax = Math.max(...Object.values(a.categoryTotals));
+  const bMax = Math.max(...Object.values(b.categoryTotals));
+  return bMax - aMax;
+});
+
+document.getElementById("charts").innerHTML = sorted.map(a => renderCard(a)).join("\n");
+</script>
+</body>
+</html>
