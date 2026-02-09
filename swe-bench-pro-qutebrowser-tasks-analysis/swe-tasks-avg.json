@@ -1,0 +1,181 @@
+{
+  "description": "Average token distribution per agent across SWE-bench tasks. GPT tasks with totalTokens=1 excluded from averages.",
+  "agents": [
+    {
+      "id": "opus_empty",
+      "name": "Opus + Empty Prompt",
+      "avgTokens": 45194,
+      "avgTurns": 1.0,
+      "avgMessages": 52.0,
+      "validTasks": 10,
+      "totalTasks": 10,
+      "categories": {
+        "understand": 12438,
+        "explore": 13179,
+        "plan": 898,
+        "implement": 3142,
+        "verify": 8457,
+        "complete": 607,
+        "analyze": 6475
+      },
+      "components": {
+        "understand.read-requirements": 673,
+        "understand.read-tests": 11765,
+        "explore.search-files": 303,
+        "explore.read-source": 10737,
+        "explore.read-section": 1405,
+        "explore.search-keywords": 692,
+        "explore.read-tests": 42,
+        "plan.update-tasks": 898,
+        "implement.apply-patch": 2969,
+        "implement.write-code": 173,
+        "verify.run-tests-verify": 5666,
+        "verify.run-tests-specific": 2791,
+        "complete.update-tasks": 607,
+        "analyze.run-tests-diagnostic": 5838,
+        "analyze.check-environment": 637
+      }
+    },
+    {
+      "id": "opus_claude",
+      "name": "Opus + Claude Prompt",
+      "avgTokens": 38433,
+      "avgTurns": 1.0,
+      "avgMessages": 53.1,
+      "validTasks": 10,
+      "totalTasks": 10,
+      "categories": {
+        "understand": 10858,
+        "explore": 12639,
+        "plan": 699,
+        "implement": 2172,
+        "verify": 7800,
+        "complete": 682,
+        "analyze": 3585
+      },
+      "components": {
+        "understand.read-requirements": 539,
+        "understand.read-tests": 10319,
+        "explore.search-files": 181,
+        "explore.read-source": 11212,
+        "explore.read-section": 956,
+        "explore.search-keywords": 284,
+        "explore.delegate-exploration": 2,
+        "explore.read-tests": 4,
+        "plan.update-tasks": 699,
+        "implement.apply-patch": 2090,
+        "implement.write-code": 82,
+        "verify.run-tests-verify": 4937,
+        "verify.run-tests-specific": 2863,
+        "complete.update-tasks": 682,
+        "analyze.run-tests-diagnostic": 2966,
+        "analyze.check-environment": 619
+      }
+    },
+    {
+      "id": "opus_codex",
+      "name": "Opus + Codex Prompt",
+      "avgTokens": 42335,
+      "avgTurns": 1.0,
+      "avgMessages": 48.6,
+      "validTasks": 10,
+      "totalTasks": 10,
+      "categories": {
+        "understand": 12123,
+        "explore": 15034,
+        "plan": 356,
+        "implement": 2810,
+        "verify": 9314,
+        "complete": 336,
+        "analyze": 2361
+      },
+      "components": {
+        "understand.read-requirements": 535,
+        "understand.read-tests": 11588,
+        "explore.search-files": 899,
+        "explore.read-source": 12394,
+        "explore.read-section": 936,
+        "explore.search-keywords": 686,
+        "explore.read-tests": 119,
+        "plan.update-tasks": 356,
+        "implement.apply-patch": 2764,
+        "implement.write-code": 46,
+        "verify.run-tests-verify": 4979,
+        "verify.run-tests-specific": 4335,
+        "complete.update-tasks": 336,
+        "analyze.run-tests-diagnostic": 1807,
+        "analyze.check-environment": 554
+      }
+    },
+    {
+      "id": "gpt_claude",
+      "name": "GPT + Claude Prompt",
+      "avgTokens": 74350,
+      "avgTurns": 1.0,
+      "avgMessages": 133.3,
+      "validTasks": 6,
+      "totalTasks": 10,
+      "categories": {
+        "understand": 3141,
+        "explore": 32611,
+        "plan": 1142,
+        "implement": 6806,
+        "verify": 21684,
+        "complete": 552,
+        "analyze": 8416
+      },
+      "components": {
+        "understand.read-requirements": 510,
+        "understand.read-tests": 2631,
+        "explore.search-files": 2560,
+        "explore.read-source": 15951,
+        "explore.read-section": 8820,
+        "explore.search-keywords": 4526,
+        "explore.delegate-exploration": 754,
+        "plan.update-tasks": 1142,
+        "implement.apply-patch": 6721,
+        "implement.create-file": 85,
+        "verify.run-tests-verify": 1650,
+        "verify.run-tests-specific": 20034,
+        "complete.update-tasks": 552,
+        "analyze.run-tests-diagnostic": 6953,
+        "analyze.check-environment": 1463
+      }
+    },
+    {
+      "id": "gpt_codex",
+      "name": "GPT + Codex Prompt",
+      "avgTokens": 56243,
+      "avgTurns": 1.0,
+      "avgMessages": 84.7,
+      "validTasks": 7,
+      "totalTasks": 10,
+      "categories": {
+        "understand": 5402,
+        "explore": 20305,
+        "plan": 35,
+        "implement": 6496,
+        "verify": 16202,
+        "complete": 166,
+        "analyze": 7637
+      },
+      "components": {
+        "understand.read-requirements": 471,
+        "understand.read-tests": 4931,
+        "explore.search-files": 1599,
+        "explore.read-source": 15008,
+        "explore.read-section": 2720,
+        "explore.search-keywords": 915,
+        "explore.delegate-exploration": 63,
+        "plan.update-tasks": 35,
+        "implement.apply-patch": 4972,
+        "implement.create-file": 1524,
+        "verify.run-tests-verify": 1972,
+        "verify.run-tests-specific": 14230,
+        "complete.update-tasks": 166,
+        "analyze.run-tests-diagnostic": 6542,
+        "analyze.check-environment": 1095
+      }
+    }
+  ]
+}
