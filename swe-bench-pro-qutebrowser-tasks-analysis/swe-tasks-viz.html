@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWE Bench Pro — Agent Comparison</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1117; color: #e0e0e0; padding: 24px; }
+h1 { font-size: 22px; margin-bottom: 8px; color: #7c8aff; }
+h2 { font-size: 16px; margin: 32px 0 12px; color: #9aa4ff; }
+.subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+
+/* Legend */
+.legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
+
+/* Bar chart */
+.bar-chart-container { width: 100%; overflow-x: auto; }
+.bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 340px; padding: 0 12px; border-bottom: 2px solid #2a2d3a; }
+.task-group { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 80px; height: 100%; }
+.task-bars { display: flex; align-items: flex-end; gap: 2px; flex: 1; width: 100%; justify-content: center; }
+.bar-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.bar { width: 14px; border-radius: 3px 3px 0 0; transition: opacity 0.15s; cursor: pointer; }
+.bar:hover { opacity: 0.8; }
+.task-label { font-size: 11px; color: #888; margin-top: 6px; text-align: center; white-space: nowrap; }
+
+/* Y-axis */
+.chart-area { display: flex; width: 100%; }
+.y-axis { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 8px; height: 340px; min-width: 48px; }
+.y-tick { font-size: 11px; color: #666; font-variant-numeric: tabular-nums; }
+
+/* Tooltip */
+.tooltip { display: none; position: fixed; background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 6px; padding: 10px 14px; font-size: 12px; line-height: 1.6; z-index: 100; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4); max-width: 260px; }
+.tooltip .tt-task { color: #7c8aff; font-weight: 600; }
+.tooltip .tt-agent { color: #e0e0e0; }
+.tooltip .tt-row { color: #aaa; }
+
+/* Heatmap */
+.heatmap-controls { display: flex; gap: 8px; margin-bottom: 12px; }
+.hm-btn { padding: 6px 14px; border: 1px solid #2a2d3a; background: #1a1d27; color: #aaa; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.15s; }
+.hm-btn:hover { border-color: #3a3d4a; color: #e0e0e0; }
+.hm-btn.active { background: #7c8aff; border-color: #7c8aff; color: #fff; }
+table.heatmap { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.heatmap th { background: #1a1d27; color: #7c8aff; text-align: center; padding: 10px 12px; font-weight: 600; border-bottom: 2px solid #2a2d3a; }
+table.heatmap th:first-child { text-align: left; }
+table.heatmap td { padding: 10px 12px; text-align: center; font-variant-numeric: tabular-nums; border-bottom: 1px solid #1e2130; }
+table.heatmap td:first-child { text-align: left; color: #ccc; font-weight: 500; background: transparent !important; }
+table.heatmap tr:hover td:first-child { background: #1a1d27 !important; }
+.hm-na { background: #1e2130 !important; color: #555; }
+table.heatmap tr.hm-avg td { border-top: 2px solid #7c8aff; font-weight: 600; }
+table.heatmap tr.hm-avg td:first-child { color: #7c8aff; }
+.task-group.avg-group { border-left: 2px solid #2a2d3a; margin-left: 8px; padding-left: 8px; }
+.task-label.avg-label { color: #7c8aff; font-weight: 600; }
+
+/* Color scale legend */
+.color-scale { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; color: #888; }
+.color-scale-bar { width: 200px; height: 12px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<h1>SWE Bench Pro — Agent Comparison</h1>
+<p class="subtitle">10 tasks &times; 5 agents &mdash; time, token count, and throughput</p>
+
+<h2>Time per Task (Grouped Bar Chart)</h2>
+<div class="legend" id="legend"></div>
+<div class="chart-area">
+  <div class="y-axis" id="y-axis"></div>
+  <div class="bar-chart-container">
+    <div class="bar-chart" id="bar-chart"></div>
+  </div>
+</div>
+
+<h2>Heatmap</h2>
+<div class="heatmap-controls">
+  <button class="hm-btn active" data-metric="time">Time (mm:ss)</button>
+  <button class="hm-btn" data-metric="tokens">Tokens</button>
+  <button class="hm-btn" data-metric="tok_s">Tok/s</button>
+</div>
+<table class="heatmap" id="heatmap"></table>
+<div class="color-scale" id="color-scale"></div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// Data inlined from swe-tasks-summary.csv (TOTAL/AVERAGE rows excluded)
+const AGENTS = ["opus-claude","opus-codex","opus-empty","gpt-claude","gpt-codex"];
+
+const DATA = [
+  {task:"untrusted-args",    "opus-claude":{time:59,tokens:9027,tok_s:150.7},  "opus-codex":{time:52,tokens:8329,tok_s:158.0},  "opus-empty":{time:55,tokens:7941,tok_s:142.6},  "gpt-claude":null, "gpt-codex":null},
+  {task:"subdomain-blocking","opus-claude":{time:386,tokens:48099,tok_s:124.6},"opus-codex":{time:388,tokens:47680,tok_s:122.7},"opus-empty":{time:163,tokens:62432,tok_s:382.6},"gpt-claude":{time:672,tokens:63332,tok_s:94.2}, "gpt-codex":{time:634,tokens:17248,tok_s:27.2}},
+  {task:"search-flags",      "opus-claude":{time:126,tokens:35391,tok_s:278.8},"opus-codex":{time:140,tokens:44383,tok_s:315.0},"opus-empty":{time:152,tokens:40422,tok_s:265.8},"gpt-claude":{time:927,tokens:84487,tok_s:91.1}, "gpt-codex":{time:89,tokens:29010,tok_s:325.1}},
+  {task:"qt-warning",        "opus-claude":{time:393,tokens:39057,tok_s:99.3}, "opus-codex":{time:527,tokens:57065,tok_s:108.1},"opus-empty":{time:144,tokens:34986,tok_s:241.6},"gpt-claude":{time:1294,tokens:57006,tok_s:44.0},"gpt-codex":{time:484,tokens:31062,tok_s:64.1}},
+  {task:"process-cleanup",   "opus-claude":{time:331,tokens:45565,tok_s:137.4},"opus-codex":{time:165,tokens:30756,tok_s:186.1},"opus-empty":{time:392,tokens:63037,tok_s:160.5},"gpt-claude":null, "gpt-codex":null},
+  {task:"parse-duration",    "opus-claude":{time:331,tokens:36635,tok_s:110.4},"opus-codex":{time:259,tokens:40880,tok_s:157.8},"opus-empty":{time:155,tokens:44817,tok_s:288.9},"gpt-claude":{time:1130,tokens:84428,tok_s:74.7},"gpt-codex":{time:534,tokens:54535,tok_s:102.0}},
+  {task:"later-units",       "opus-claude":{time:163,tokens:42629,tok_s:260.9},"opus-codex":{time:238,tokens:53325,tok_s:223.2},"opus-empty":{time:123,tokens:50832,tok_s:410.7},"gpt-claude":{time:968,tokens:91403,tok_s:94.4},"gpt-codex":{time:416,tokens:75191,tok_s:180.3}},
+  {task:"coord-parsing",     "opus-claude":{time:69,tokens:40514,tok_s:581.3}, "opus-codex":{time:144,tokens:61310,tok_s:422.8},"opus-empty":{time:237,tokens:68447,tok_s:288.4},"gpt-claude":null, "gpt-codex":{time:1871,tokens:141748,tok_s:75.8}},
+  {task:"close-matches",     "opus-claude":{time:84,tokens:28245,tok_s:332.9}, "opus-codex":{time:99,tokens:30828,tok_s:309.6}, "opus-empty":{time:103,tokens:27401,tok_s:265.2},"gpt-claude":null, "gpt-codex":null},
+  {task:"changelog",         "opus-claude":{time:386,tokens:59165,tok_s:153.0},"opus-codex":{time:297,tokens:48791,tok_s:163.9},"opus-empty":{time:158,tokens:51630,tok_s:326.4},"gpt-claude":{time:665,tokens:65445,tok_s:98.4},"gpt-codex":{time:532,tokens:44907,tok_s:84.3}}
+];
+
+// Compute AVERAGE row — only over tasks where ALL agents have data
+var commonTasks = DATA.filter(function(row) {
+  return AGENTS.every(function(a) { return row[a] != null; });
+});
+var avgRow = {task: "AVERAGE (" + commonTasks.length + " tasks)"};
+AGENTS.forEach(function(a) {
+  var n = commonTasks.length;
+  if (n === 0) { avgRow[a] = null; return; }
+  var sumTime = 0, sumTokens = 0, sumRate = 0;
+  commonTasks.forEach(function(row) {
+    sumTime += row[a].time; sumTokens += row[a].tokens; sumRate += row[a].tok_s;
+  });
+  avgRow[a] = {
+    time: Math.round(sumTime / n),
+    tokens: Math.round(sumTokens / n),
+    tok_s: +(sumRate / n).toFixed(1)
+  };
+});
+DATA.push(avgRow);
+
+const COLORS = {
+  'opus-claude': '#7c8aff',
+  'opus-codex':  '#50c878',
+  'opus-empty':  '#f0a050',
+  'gpt-claude':  '#e06070',
+  'gpt-codex':   '#a07cdb'
+};
+
+const HEAT_COLORS = {
+  time:   { h: 230, s: 70, lMin: 85, lMax: 30 },
+  tokens: { h: 150, s: 60, lMin: 85, lMax: 30 },
+  tok_s:  { h: 30,  s: 80, lMin: 85, lMax: 30 }
+};
+
+// --- Helpers ---
+function fmtTime(s) {
+  if (s == null) return 'n/a';
+  var m = Math.floor(s / 60), sec = Math.round(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+function fmtTokens(t) { return t == null ? 'n/a' : t.toLocaleString(); }
+function fmtRate(r) { return r == null ? 'n/a' : r.toFixed(1); }
+
+// --- Grouped bar chart ---
+(function() {
+  var chart = document.getElementById('bar-chart');
+  var legend = document.getElementById('legend');
+  var yAxis = document.getElementById('y-axis');
+  var tooltip = document.getElementById('tooltip');
+
+  // Max time across all cells
+  var maxTime = 0;
+  DATA.forEach(function(row) {
+    AGENTS.forEach(function(a) {
+      if (row[a] && row[a].time > maxTime) maxTime = row[a].time;
+    });
+  });
+  maxTime = Math.ceil(maxTime / 300) * 300; // round up to nearest 5 min
+
+  // Y-axis ticks
+  var tickCount = 6;
+  for (var i = tickCount; i >= 0; i--) {
+    var val = (maxTime / tickCount) * i;
+    var tick = document.createElement('div');
+    tick.className = 'y-tick';
+    tick.textContent = fmtTime(val);
+    yAxis.appendChild(tick);
+  }
+
+  // Legend
+  AGENTS.forEach(function(a) {
+    var item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = '<div class="legend-swatch" style="background:' + COLORS[a] + '"></div>' + a;
+    legend.appendChild(item);
+  });
+
+  // Bars
+  DATA.forEach(function(row) {
+    var isAvg = row.task === 'AVERAGE';
+    var group = document.createElement('div');
+    group.className = 'task-group' + (isAvg ? ' avg-group' : '');
+
+    var barsDiv = document.createElement('div');
+    barsDiv.className = 'task-bars';
+
+    AGENTS.forEach(function(a) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'bar-wrapper';
+
+      if (row[a]) {
+        var heightPct = (row[a].time / maxTime) * 100;
+        var bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = heightPct + '%';
+        bar.style.background = COLORS[a];
+        if (isAvg) bar.style.opacity = '0.7';
+        bar.dataset.task = row.task;
+        bar.dataset.agent = a;
+        bar.dataset.time = row[a].time;
+        bar.dataset.tokens = row[a].tokens;
+        bar.dataset.toks = row[a].tok_s;
+
+        bar.addEventListener('mouseenter', function(e) {
+          tooltip.style.display = 'block';
+          tooltip.innerHTML =
+            '<div class="tt-task">' + this.dataset.task + '</div>' +
+            '<div class="tt-agent">' + this.dataset.agent + '</div>' +
+            '<div class="tt-row">Time: ' + fmtTime(+this.dataset.time) + '</div>' +
+            '<div class="tt-row">Tokens: ' + fmtTokens(+this.dataset.tokens) + '</div>' +
+            '<div class="tt-row">Tok/s: ' + fmtRate(+this.dataset.toks) + '</div>';
+        });
+        bar.addEventListener('mousemove', function(e) {
+          tooltip.style.left = (e.clientX + 12) + 'px';
+          tooltip.style.top = (e.clientY - 10) + 'px';
+        });
+        bar.addEventListener('mouseleave', function() {
+          tooltip.style.display = 'none';
+        });
+        wrapper.appendChild(bar);
+      }
+      barsDiv.appendChild(wrapper);
+    });
+
+    var label = document.createElement('div');
+    label.className = 'task-label' + (isAvg ? ' avg-label' : '');
+    label.textContent = row.task;
+
+    group.appendChild(barsDiv);
+    group.appendChild(label);
+    chart.appendChild(group);
+  });
+})();
+
+// --- Heatmap ---
+var currentMetric = 'time';
+
+function buildHeatmap(metric) {
+  var table = document.getElementById('heatmap');
+  var scaleDiv = document.getElementById('color-scale');
+  var hc = HEAT_COLORS[metric];
+
+  // Min/max for scaling
+  var vals = [];
+  DATA.forEach(function(row) {
+    AGENTS.forEach(function(a) {
+      if (row[a]) vals.push(row[a][metric]);
+    });
+  });
+  var minVal = Math.min.apply(null, vals);
+  var maxVal = Math.max.apply(null, vals);
+
+  function cellColor(v) {
+    if (maxVal === minVal) return 'hsl(' + hc.h + ',' + hc.s + '%,' + ((hc.lMin + hc.lMax) / 2) + '%)';
+    var t = (v - minVal) / (maxVal - minVal);
+    var l = hc.lMin + (hc.lMax - hc.lMin) * t;
+    return 'hsl(' + hc.h + ',' + hc.s + '%,' + l + '%)';
+  }
+
+  function textColor(v) {
+    if (maxVal === minVal) return '#222';
+    var t = (v - minVal) / (maxVal - minVal);
+    var l = hc.lMin + (hc.lMax - hc.lMin) * t;
+    return l < 55 ? '#eee' : '#222';
+  }
+
+  function fmtCell(v) {
+    if (metric === 'time') return fmtTime(v);
+    if (metric === 'tokens') return fmtTokens(v);
+    return fmtRate(v);
+  }
+
+  var html = '<thead><tr><th>Task</th>';
+  AGENTS.forEach(function(a) { html += '<th>' + a + '</th>'; });
+  html += '</tr></thead><tbody>';
+
+  DATA.forEach(function(row) {
+    var isAvg = row.task === 'AVERAGE';
+    html += '<tr' + (isAvg ? ' class="hm-avg"' : '') + '><td>' + row.task + '</td>';
+    AGENTS.forEach(function(a) {
+      if (row[a]) {
+        var v = row[a][metric];
+        html += '<td style="background:' + cellColor(v) + ';color:' + textColor(v) + '">' + fmtCell(v) + '</td>';
+      } else {
+        html += '<td class="hm-na">n/a</td>';
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+
+  // Color scale
+  var grad = 'linear-gradient(to right, hsl(' + hc.h + ',' + hc.s + '%,' + hc.lMin + '%), hsl(' + hc.h + ',' + hc.s + '%,' + hc.lMax + '%))';
+  scaleDiv.innerHTML = fmtCell(minVal) + ' <div class="color-scale-bar" style="background:' + grad + '"></div> ' + fmtCell(maxVal);
+}
+
+// Metric toggle
+document.querySelectorAll('.hm-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.hm-btn').forEach(function(b) { b.classList.remove('active'); });
+    this.classList.add('active');
+    currentMetric = this.dataset.metric;
+    buildHeatmap(currentMetric);
+  });
+});
+
+buildHeatmap(currentMetric);
+</script>
+</body>
+</html>
