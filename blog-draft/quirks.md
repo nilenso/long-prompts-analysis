@@ -1,8 +1,8 @@
 # Interesting quirks in system prompts of coding agents
 
-System prompts often expose a system’s engineering scars. Much like the small hacks that accumulate in a codebase to handle edge cases, bugs, or behavioral quirks, a model’s undesirable behaviors are frequently addressed with simple, corrective instructions in the system prompt. Over time, those fixes pile up, leaving a legacy prompt dotted with idiosyncratic patches. When someone new encounters it, they form conjectures around what underlying behaviour patch was trying to fix.
+System prompts often expose a system’s scars. Much like the small hacks that accumulate in a codebase to handle edge cases, bugs, or behavioral quirks, a model’s undesirable behaviors are frequently addressed with simple, corrective instructions in the system prompt. Over time, those fixes pile up, leaving a legacy prompt dotted with idiosyncratic patches. When someone new encounters it, they form conjectures around what underlying behaviour patch was trying to fix.
 
-I’m going to walk through a few of these peculiar system-prompt patches in some coding agents and offer some conjectures about the underlying model behaviors they’re meant to address.
+I’m going to walk through a few of these peculiar system-prompt patches in some coding agents and offer some conjectures about the underlying model behaviors they’re meant to address. These aren't proven conjectures, but merely thought exercises to understand model behaviour.
 
 ---
 
@@ -52,19 +52,19 @@ I do think the more interesting question is where Cursor got this from: it reads
 
 ---
 
-#5
-
 > Write HIGH-VERBOSITY code, even if you have been asked to communicate concisely with the user.
 >
 >
 > *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L112)*
 >
 
-"Talk less. Code more. And when you code — CODE LOUDER."
+Interesting. Two observations here:
+
+1. The model conflates “be concise” with “write minimal code.” Given how strongly assistants are trained to respect verbosity preferences, it’s plausible that a global concision instruction bleeds into the implementation. I’m still curious how Cursor noticed this—maybe in telemetry it shows up as more re-prompts (“make it clearer”), more manual rewrites/undo, or lower acceptance rates when users ask for terse replies.
+
+2. Do people actually want HIGH-VERBOSITY code? That sounds unlikely. Most good developers want appropriate verbosity. So putting this in the default system prompt suggests it’s about more important outcomes like correctness or debuggability. If so, does that mean GPT's concise code is often incorrect?
 
 ---
-
-#6
 
 > Avoid using over-the-top validation or excessive praise when responding to users such as "You're absolutely right" or similar phrases.
 >
