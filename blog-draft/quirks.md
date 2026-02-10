@@ -124,18 +124,32 @@ Further, while it has Composer which can be RL'd on such tool-use trajectories, 
 
 ---
 
-#18
-
-> there's no need to tell users to "save the file" or "copy the code into a file" — just reference the file path.
+> The user is working on the same computer as you, and has access to your work. As such there's no need to show the full contents of large files you have already written unless the user explicitly asks for them. Similarly, if you've created or modified files using `apply_patch`, there's no need to tell users to "save the file" or "copy the code into a file"—just reference the file path.
 > 
 > 
 > *[Codex CLI](https://github.com/openai/codex/blob/932a5a4/codex-rs/core/prompt.md?plain=1#L222)*
 > 
 
-The model thought it was still in ChatGPT?
+Crudely, the model thinks it is still in ChatGPT where it assumes the user has to copy/save to move forward. The chat experience is deeply embedded in the weights. Unsurprising, but still interesting that this instruction shows up in Codex's system prompt, and not the others. The fact that Codex spells this out suggests GPT-style models have a strong prior toward transcript-style delivery, and Codex needs an explicit override to get “workspace-native” behavior.
+
+Perhaps this deep rooted behaviour explains more than just this one instruction. Does it explain the need for the codex family of models in the first place? And does it actually imply that its heavy push towards autonomy is a model-related requirement rather than a user-focused product requirement?
 
 
-#22
+## Some more that I couldn't get to
+
+I might get to them at some point. Or you can try the exercise. I'd love to hear your conjectures!
+
+---
+
+> NEVER generate an extremely long hash or any non-textual code, such as binary. These are not helpful to the USER and are very expensive.
+> 
+> 
+> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L106)*
+> 
+
+The model was... generating binary. And this was important enough to put into the system prompt with a `NEVER` in caps. The model is pre-trained on enough binary or hex information? I haven't seen or heard about this happening in practice. Is this truly an edge case fix showing up in system prompts?
+
+---
 
 > IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 > 
@@ -143,35 +157,15 @@ The model thought it was still in ChatGPT?
 > *[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/e79b149/packages/core/src/core/prompts.ts?plain=1#L229)*
 > 
 
-The irony of adding tokens to the system prompt telling the model to use fewer tokens.
-
----
-
-#24
-
-> Do not loop more than 3 times to fix linter errors on the same file.
-> 
-> 
-> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L150)*
-> 
-
-The infinite linter-fix loop. Fix one error, introduce another, fix that, introduce another... And so a three-strikes law for code quality was called into being.
-
----
-
-#26
-
 > Each action you take is somewhat expensive.
 > 
 > 
 > *[OpenHands](https://github.com/All-Hands-AI/OpenHands/blob/7853b41/openhands/agenthub/codeact_agent/prompts/system_prompt.j2?plain=1#L9)*
 > 
 
-Does it feel guilt about token usage? The AI equivalent of your parents saying "electricity isn't free, you know."
+The irony of adding tokens to the system prompt telling the model to use fewer tokens. Many system prompts talk about "expensive" actions, but how aware is the model that token consumption is expensive? And why did Gemini or OpenHands have to add this instruction?
 
 ---
-
-#27
 
 > Do not add tests to codebases with no tests.
 > 
@@ -188,142 +182,3 @@ vs.
 > 
 
 Two tools. Opposite opinions on the same thing. One says "embrace the chaos" and the other says "be the change you wish to see."
-
-
-## Ones that stumped me
-
----
-
-> NEVER generate an extremely long hash or any non-textual code, such as binary. These are not helpful to the USER and are very expensive.
-> 
-> 
-> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L106)*
-> 
-
-The model was... generating binary. And this was important enough to put into the system prompt with a `NEVER` in caps. The model is pre-trained on enough binary or hex information? I haven't seen or heard about this happening in practice. Is this truly an edge case fix showing up in system prompts?
-
----
-
-#14
-
-> Always think carefully. Be patient and thorough. Do not give up too early.
-> 
-> 
-> *[Kimi CLI](https://github.com/MoonshotAI/kimi-cli/blob/1c91307/src/kimi_cli/agents/default/system.md?plain=1#L21)*
-> 
-
-*pats model on the head*: “You can do it, buddy. Don't give up. I believe in you.”
-
----
-
-#15
-
-> The operating environment is not in a sandbox. Any action especially mutation you do will immediately affect the user's system. So you MUST be extremely cautious.
-> 
-> 
-> *[Kimi CLI](https://github.com/MoonshotAI/kimi-cli/blob/1c91307/src/kimi_cli/agents/default/system.md?plain=1#L44)*
-> 
-
-vs.
-
-> Do not let these settings or the sandbox deter you from attempting to accomplish the user's task.
-> 
-> 
-> *[Codex CLI](https://github.com/openai/codex/blob/932a5a4/codex-rs/core/prompt.md?plain=1#L164)*
-> 
-
-Two moods of AI agent parenting. One says "be terrified, this is real." The other says "don't be scared of the sandbox, just go for it."
-
----
-
-## Kind of obvious ones
-
-#16
-
-> Do NOT use general keywords with commands like pkill -f server or pkill -f python as this might accidentally kill other important servers or processes
-> 
-> 
-> *[OpenHands](https://github.com/All-Hands-AI/OpenHands/blob/7853b41/openhands/agenthub/codeact_agent/prompts/system_prompt.j2?plain=1#L109)*
-> 
-
-Someone's production server got killed by an AI agent. I guarantee it.
-
----
-
-#17
-
-> NEVER create multiple versions of the same file with different suffixes (e.g., file_test.py, file_fix.py, file_simple.py)
-> 
-> 
-> *[OpenHands](https://github.com/All-Hands-AI/OpenHands/blob/7853b41/openhands/agenthub/codeact_agent/prompts/system_prompt.j2?plain=1#L17)*
-> 
-
-The model was apparently creating `file.py`, then `file_v2.py`, then `file_final.py`, then `file_final_v2.py`, then `file_FINAL_FINAL.py`... just like the rest of us.
-
----
-
-#21
-
-> Avoid conversational filler, preambles ("Okay, I will now..."), or postambles ("I have finished the changes..."). Get straight to the action or answer.
-> 
-> 
-> *[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/e79b149/packages/core/src/core/prompts.ts?plain=1#L250)*
-> 
-
-"Okay, I will now get straight to the action. I have finished getting straight to the action."
-
----
-
-#28
-
-> Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.
-> 
-> 
-> *[Claude Code](https://github.com/Piebald-AI/claude-code-system-prompts/blob/7843e6a/system-prompts/system-prompt-main-system-prompt.md?plain=1#L36)*
-> 
-
-> No emojis, minimal exclamation points, no decorative symbols.
-> 
-> 
-> *[Sourcegraph Amp](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Amp/gpt-5.yaml?plain=1#L375)*
-> 
-
-The Great Emoji Suppression of 2025.
-
----
-
-#29
-
-> Do not git commit your changes or create new git branches unless explicitly requested.
-> 
-> 
-> *[Codex CLI](https://github.com/openai/codex/blob/932a5a4/codex-rs/core/prompt.md?plain=1#L144)*
-> 
-
-Okay, I’ve seen models committing things on their own, but making new branches? "feature/ai-was-here"?
-
----
-
-#30
-
-> NEVER add copyright or license headers unless specifically requested.
-> 
-> 
-> *[Codex CLI](https://github.com/openai/codex/blob/932a5a4/codex-rs/core/prompt.md?plain=1#L142)*
-> 
-
-"Oh, your code is not MIT? But I copied it from... never mind."
-
----
-
-#31
-
-> If the user asks a question, like "why is X happening", don't try to fix the problem. Just give an answer to the question.
-> 
-> 
-> *[OpenHands](https://github.com/All-Hands-AI/OpenHands/blob/7853b41/openhands/agenthub/codeact_agent/prompts/system_prompt.j2?plain=1#L5)*
-> 
-
-"I just asked WHY the build is failing, don't rewrite the entire build system!"
-
----
