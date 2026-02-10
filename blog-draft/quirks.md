@@ -181,4 +181,4 @@ vs.
 > *[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/e79b149/packages/core/src/core/prompts.ts?plain=1#L148)*
 > 
 
-Two tools. Opposite opinions on the same thing. One says "embrace the chaos" and the other says "be the change you wish to see."
+Two tools. Opposite opinions on the same thing. One says "embrace the chaos" and the other says "be the change you wish to see." Why?
