@@ -108,15 +108,19 @@ I suspect the typos are coming from learned weights. It's unlikely for such a un
 
 ---
 
-#23
-
-> Do not attempt to call ApplyPatch more than three times consecutively on the same file without calling Read on that file to re-confirm its contents.
+> When editing a file using the apply_patch tool, remember that the file contents can change often due to user modifications, and that calling apply_patch with incorrect context is very costly. Therefore, if you want to call apply_patch on a file that you have not opened with the read_file tool within your last five (5) messages, you should use the read_file tool to read the file again before attempting to apply a patch. Furthermore, do not attempt to call apply_patch more than three times consecutively on the same file without calling read_file on that file to re-confirm its contents.
 > 
 > 
 > *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L107)*
 > 
 
-The model was just... banging its head against the same file over and over. Three strikes and you must re-read. A very specific intervention for a very specific failure mode.
+I'm impressed that Cursor has the confidence to provide such concrete heuristics for optimistic concurrency control:
+- If it hasn't read a file within last 5 messages => consider stale
+- If it has written 3 times without reading => consider stale
+
+While I haven't tried it myself, I suspect these are likely related to the autocomplete / tab completions in Cursor, where we can expect a lot more user-model co-authorship than with other CLI tools. This implies Cursor has some interesting tool call chains which are quite different from other CLI tools I've listed here. It could be similar to Copilot and Windsurf which also have autocomplete as a primary UX.
+
+Further, while it has Composer which can be RL'd on such tool-use trajectories, it has to instruct models like GPT / Opus to work well with its tool use trajectories.
 
 ---
 
