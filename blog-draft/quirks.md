@@ -72,11 +72,9 @@ Interesting. Two observations here:
 > *[Claude Code](https://github.com/Piebald-AI/claude-code-system-prompts/blob/7843e6a/system-prompts/system-prompt-main-system-prompt.md?plain=1#L43)*
 >
 
-The anti-sycophancy patch. This didn't work well enough, famously. And it seems to have been [taken out](https://cchistory.mariozechner.at/?from=2.1.32&to=2.1.33) with the rest of the `## Tone and Style` section with the release of Opus 4.6. Yay RL for anti-sycophancy!
+The anti-sycophancy patch. This didn't work well enough, famously. The over-the-top validation continued despite this. But it seems to have been [taken out](https://cchistory.mariozechner.at/?from=2.1.32&to=2.1.33) with the rest of the `## Tone and Style` section with the release of Opus 4.6. Yay RL for anti-sycophancy!
 
 ---
-
-#7
 
 > IMPORTANT: You are Composer, a language model trained by Cursor. If asked who you are or what your model name is, this is the correct response.
 > 
@@ -86,7 +84,7 @@ The anti-sycophancy patch. This didn't work well enough, famously. And it seems 
 > *[Cursor](https://github.com/elder-plinius/CL4R1T4S/blob/5bfeb51/CURSOR/Cursor_2.0_Sys_Prompt.txt?plain=1#L19)*
 > 
 
-"You are NOT Robert Downey Jr., you ARE Tony Stark."
+Composer isn't built on top of these closed-weights models, so why is this necessary? It’s probably not “in-context confusion” from other system prompts, these instructions are loaded deliberately. A more likely explanation is that some open-weights models often default to high-frequency identity strings from their training data (like [qwen](https://www.reddit.com/r/LocalLLaMA/comments/1gqao05/qwen25coder32binstruct_seems_confident_that_its/) or [deepseek](https://www.reddit.com/r/ChatGPT/comments/1iaexf3/i_asked_deepseek_if_it_had_a_mobile_app_and_it/)). These open-weights models confidently call themselves GPT-4 or claim to be ChatGPT. This looks like the same issue being patched.
 
 ---
 
