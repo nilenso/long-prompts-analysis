@@ -90,18 +90,6 @@ Composer isn't built on top of these closed-weights models, so why is this neces
 
 ---
 
-#9
-
-> If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.
-> 
-> 
-> *[Claude Code](https://github.com/Piebald-AI/claude-code-system-prompts/blob/7843e6a/system-prompts/system-prompt-main-system-prompt.md?plain=1#L50) (about the TodoWrite tool)*
-> 
-
-The model is being *scolded* for hypothetical future forgetfulness. "Unacceptable" is doing a lot of heavy lifting here. Imagine your boss pre-scolding you: "If you don't use Jira, you will forget things, and THAT IS UNACCEPTABLE."
-
----
-
 > Use the apply_patch tool to edit files (NEVER try applypatch or apply-patch, only apply_patch)
 > 
 > 
@@ -130,8 +118,76 @@ I suspect the typos are coming from learned weights. It's unlikely for such a un
 
 The model was just... banging its head against the same file over and over. Three strikes and you must re-read. A very specific intervention for a very specific failure mode.
 
+---
+
+#18
+
+> there's no need to tell users to "save the file" or "copy the code into a file" — just reference the file path.
+> 
+> 
+> *[Codex CLI](https://github.com/openai/codex/blob/932a5a4/codex-rs/core/prompt.md?plain=1#L222)*
+> 
+
+The model thought it was still in ChatGPT?
+
+
+#22
+
+> IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
+> 
+> 
+> *[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/e79b149/packages/core/src/core/prompts.ts?plain=1#L229)*
+> 
+
+The irony of adding tokens to the system prompt telling the model to use fewer tokens.
+
+---
+
+#24
+
+> Do not loop more than 3 times to fix linter errors on the same file.
+> 
+> 
+> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L150)*
+> 
+
+The infinite linter-fix loop. Fix one error, introduce another, fix that, introduce another... And so a three-strikes law for code quality was called into being.
+
+---
+
+#26
+
+> Each action you take is somewhat expensive.
+> 
+> 
+> *[OpenHands](https://github.com/All-Hands-AI/OpenHands/blob/7853b41/openhands/agenthub/codeact_agent/prompts/system_prompt.j2?plain=1#L9)*
+> 
+
+Does it feel guilt about token usage? The AI equivalent of your parents saying "electricity isn't free, you know."
+
+---
+
+#27
+
+> Do not add tests to codebases with no tests.
+> 
+> 
+> *[Codex CLI](https://github.com/openai/codex/blob/932a5a4/codex-rs/core/prompt.md?plain=1#L188)*
+> 
+
+vs.
+
+> When adding features or fixing bugs, this includes adding tests to ensure quality.
+> 
+> 
+> *[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/e79b149/packages/core/src/core/prompts.ts?plain=1#L148)*
+> 
+
+Two tools. Opposite opinions on the same thing. One says "embrace the chaos" and the other says "be the change you wish to see."
+
 
 ## Ones that stumped me
+
 ---
 
 > NEVER generate an extremely long hash or any non-textual code, such as binary. These are not helpful to the USER and are very expensive.
@@ -176,6 +232,8 @@ Two moods of AI agent parenting. One says "be terrified, this is real." The othe
 
 ---
 
+## Kind of obvious ones
+
 #16
 
 > Do NOT use general keywords with commands like pkill -f server or pkill -f python as this might accidentally kill other important servers or processes
@@ -200,50 +258,6 @@ The model was apparently creating `file.py`, then `file_v2.py`, then `file_final
 
 ---
 
-#18
-
-> there's no need to tell users to "save the file" or "copy the code into a file" — just reference the file path.
-> 
-> 
-> *[Codex CLI](https://github.com/openai/codex/blob/932a5a4/codex-rs/core/prompt.md?plain=1#L222)*
-> 
-
-The model thought it was still in ChatGPT?
-
----
-
-#19
-
-> user: How many golf balls fit inside a jetta?
-assistant: 150000
-> 
-> 
-> *[Claude Code](https://github.com/asgeirtj/system_prompts_leaks/blob/6a2bc89/Anthropic/claude-code.js?plain=1#L62) (few-shot example in the system prompt)*
-> 
-
-This is an actual example in the Claude Code system prompt, teaching the model to give short answers. But also... 150,000? That seems... high? Did they fact-check this? Is this prompt-engineer-verified Jetta-golf-ball science?
-
----
-
-#20
-
-> This tool should be used whenever a user expresses interest in receiving Anthropic or Claude stickers, swag, or merchandise. When triggered, it will display a shipping form for the user to enter their mailing address and contact details.
-> 
-> 
-> NOTE: Only use this tool if the user has explicitly asked us to send or give them stickers. If there are other requests that include the word "sticker", but do not explicitly ask us to send them stickers, do not use this tool.
-> For example:
-> 
-> - "How do I make custom stickers for my project?" - Do not use this tool
-> - "I need to store sticker metadata in a database" - Do not use this tool
-> - "Show me how to implement drag-and-drop sticker placement with React" - Do not use this tool
-> 
-> *[Claude Code](https://github.com/asgeirtj/system_prompts_leaks/blob/6a2bc89/Anthropic/claude-code.md?plain=1#L631) (v0.2.9, since removed)*
-> 
-
-A coding CLI with a built-in sticker shipping form. And they had to add negative examples because the model was apparently trying to ship stickers to people who just wanted to *code* something about stickers. "I need a database schema for—" "DID SOMEONE SAY STICKERS? 📬"
-
----
-
 #21
 
 > Avoid conversational filler, preambles ("Okay, I will now..."), or postambles ("I have finished the changes..."). Get straight to the action or answer.
@@ -253,75 +267,6 @@ A coding CLI with a built-in sticker shipping form. And they had to add negative
 > 
 
 "Okay, I will now get straight to the action. I have finished getting straight to the action."
-
----
-
-#22
-
-> IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
-> 
-> 
-> *[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/e79b149/packages/core/src/core/prompts.ts?plain=1#L229)*
-> 
-
-The irony of adding tokens to the system prompt telling the model to use fewer tokens.
-
-
----
-
-#24
-
-> Do not loop more than 3 times to fix linter errors on the same file.
-> 
-> 
-> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L150)*
-> 
-
-The infinite linter-fix loop. Fix one error, introduce another, fix that, introduce another... And so a three-strikes law for code quality was called into being.
-
----
-
-#25
-
-> Keep the voice collaborative and natural, like a coding partner handing off work.
-> 
-> 
-> *[Codex CLI](https://github.com/openai/codex/blob/932a5a4/codex-rs/core/prompt.md?plain=1#L275)*
-> 
-
-I’d love to see an AI personality modelled after my favourite b99 character: "Dear User, Please find enclosed my code changes. Sincerely, Raymond Holt".
-
----
-
-#26
-
-> Each action you take is somewhat expensive.
-> 
-> 
-> *[OpenHands](https://github.com/All-Hands-AI/OpenHands/blob/7853b41/openhands/agenthub/codeact_agent/prompts/system_prompt.j2?plain=1#L9)*
-> 
-
-Does it feel guilt about token usage? The AI equivalent of your parents saying "electricity isn't free, you know."
-
----
-
-#27
-
-> Do not add tests to codebases with no tests.
-> 
-> 
-> *[Codex CLI](https://github.com/openai/codex/blob/932a5a4/codex-rs/core/prompt.md?plain=1#L188)*
-> 
-
-vs.
-
-> When adding features or fixing bugs, this includes adding tests to ensure quality.
-> 
-> 
-> *[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/e79b149/packages/core/src/core/prompts.ts?plain=1#L148)*
-> 
-
-Two tools. Opposite opinions on the same thing. One says "embrace the chaos" and the other says "be the change you wish to see."
 
 ---
 
@@ -376,17 +321,5 @@ Okay, I’ve seen models committing things on their own, but making new branches
 > 
 
 "I just asked WHY the build is failing, don't rewrite the entire build system!"
-
----
-
-#33
-
-> CRITICAL INSTRUCTION: For maximum efficiency, whenever you perform multiple operations, invoke all relevant tools concurrently... DEFAULT TO PARALLEL... This is not just an optimization - it's the expected behavior. Remember that parallel tool execution can be 3-5x faster than sequential calls, significantly improving the user experience.
-> 
-> 
-> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L79)*
-> 
-
-Cursor devotes approximately 400 words across 4+ sections to telling the model to make parallel tool calls. They say it in normal text, then bold, then CAPS, then with examples, then with negative examples, then with a performance benchmark (3-5x!). This might be the single most reinforced instruction across all system prompts. The model REALLY wants to do things one at a time.
 
 ---
