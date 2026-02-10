@@ -2,7 +2,7 @@
 
 System prompts often expose a system’s engineering scars. Much like the small hacks that accumulate in a codebase to handle edge cases, bugs, or behavioral quirks, a model’s undesirable behaviors are frequently addressed with simple, corrective instructions in the system prompt. Over time, those fixes pile up, leaving a legacy prompt dotted with idiosyncratic patches. When someone new encounters it, they form conjectures around what underlying behaviour patch was trying to fix.
 
-I’m going to walk through a few of these system-prompt patches in some coding agents and offer some conjectures about the underlying model behaviors they’re meant to address.
+I’m going to walk through a few of these peculiar system-prompt patches in some coding agents and offer some conjectures about the underlying model behaviors they’re meant to address.
 
 > IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming.
 >
@@ -10,7 +10,9 @@ I’m going to walk through a few of these system-prompt patches in some coding 
 > *[Claude Code](https://github.com/Piebald-AI/claude-code-system-prompts/blob/7843e6a/system-prompts/system-prompt-main-system-prompt.md?plain=1#L29)*
 >
 
-"NEVER run in the hallways... unless you're going somewhere." Is this vestigial from a pre-web-search-tool-era? 
+This instruction sits at the very top of the prompt and is flagged as IMPORTANT in all caps, which suggests it’s pushing against a strong learned tendency to invent links. It might be a holdover from before Claude Code had built-in web search, but the fact that it remains hints that link hallucination is persistent even in the current setup.
+
+Allowing URL guesses when they help with programming also implies that the main problem shows up outside programming, where “plausible” links are less standardized and mistakes are costlier. Safety is an obvious motive, though the prompt already contains other risk mitigations, so this may be aimed less at overt abuse and more at epistemics. The model may have learned that including citation-style links boosts perceived credibility, and is therefore biased toward generating them.
 
 ---
 
@@ -22,7 +24,7 @@ I’m going to walk through a few of these system-prompt patches in some coding 
 > *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L9)*
 >
 
-The model was like Linus reviewing submissions on the kernel mailing list? I'd have loved to see that.
+Given this is for a GPT model, I'd bet this is to fight the context-distraction from the instructions for the `apply_patch` tool that's used for editing files. I suspect this instruction isn't present for other models. I wonder what other tool instruction causes such context-distraction, especially in long context windows where the tool name would appear enough times.
 
 ---
 
