@@ -1,15 +1,8 @@
-**!! NOTE**
-  [DRAFT, Throwaway]
-  [I want to rewrite this with my observations rather than a list of comic quirks]
-**
+# Interesting quirks in system prompts of coding agents
 
-# Wat. System prompts edition.
+System prompts often expose a system’s engineering scars. Much like the small hacks that accumulate in a codebase to handle edge cases, bugs, or behavioral quirks, a model’s undesirable behaviors are frequently addressed with simple, corrective instructions in the system prompt. Over time, those fixes pile up, leaving a legacy prompt dotted with idiosyncratic patches. When someone new encounters it, they form conjectures around what underlying behaviour patch was trying to fix.
 
-Behind every AI coding tool is a system prompt desperately trying to stop the model from doing something unhinged. These are real instructions, from real products, written by real engineers who had to debug real incidents. I collected the best ones.
-
- 
-
-#1
+I’m going to walk through a few of these system-prompt patches in some coding agents and offer some conjectures about the underlying model behaviors they’re meant to address.
 
 > IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming.
 >
