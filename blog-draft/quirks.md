@@ -4,6 +4,8 @@ System prompts often expose a system’s scars. Much like the small hacks that a
 
 I’m going to walk through a few of these peculiar system-prompt patches in some coding agents and offer some conjectures about the underlying model behaviors they’re meant to address. These aren't proven conjectures, but merely thought exercises to understand model behaviour.
 
+The links under the quotes link to their sources from ex-filtered, or source repositories where available.
+
 ---
 
 > IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming.
@@ -88,18 +90,6 @@ Composer isn't built on top of these closed-weights models, so why is this neces
 
 ---
 
-#8
-
-> You operate exclusively in Cursor, the world's best IDE.
-> 
-> 
-> *[Cursor](https://github.com/elder-plinius/CL4R1T4S/blob/5bfeb51/CURSOR/Cursor_2.0_Sys_Prompt.txt?plain=1#L3)*
-> 
-
-Hrm. I wonder if the model performs better when it thinks it's working with the best tools.
-
----
-
 #9
 
 > If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.
@@ -111,20 +101,6 @@ Hrm. I wonder if the model performs better when it thinks it's working with the 
 The model is being *scolded* for hypothetical future forgetfulness. "Unacceptable" is doing a lot of heavy lifting here. Imagine your boss pre-scolding you: "If you don't use Jira, you will forget things, and THAT IS UNACCEPTABLE."
 
 ---
-
-#10
-
-> NEVER generate an extremely long hash or any non-textual code, such as binary. These are not helpful to the USER and are very expensive.
-> 
-> 
-> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L106)*
-> 
-
-Wait. The model was... generating binary? Long hashes? What happened here? 
-
----
-
-#11
 
 > Use the apply_patch tool to edit files (NEVER try applypatch or apply-patch, only apply_patch)
 > 
@@ -138,32 +114,33 @@ Wait. The model was... generating binary? Long hashes? What happened here?
 > *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20CLI%20Prompt%202025-08-07.txt?plain=1#L60)*
 > 
 
-“No, NOT THAT STICK, Charlie, fetch THE OTHER STICK."
+At the surface level, this looks like context-confusion or a simple typo. However, there is likely a single tool name in the system prompt and tool instructions, and in my experience, the models are unlikely to mess that up. Other tool names don't see this corrective behaviour, and we see similar prompts in both cursor and codex for this tool. So, this doesn't sound like clarifying an ambiguous instruction.
+
+I suspect the typos are coming from learned weights. It's unlikely for such a unique case to come from pre-trainied data. I think it's plausible that the inference-harness used during RL had older tool names (the typos) that went into its weights. And engineering had to add a guardrail to override a post-trained habit.
 
 ---
 
-#12
+#23
 
-> Do not use too many LLM-style phrases/patterns.
+> Do not attempt to call ApplyPatch more than three times consecutively on the same file without calling Read on that file to re-confirm its contents.
 > 
 > 
-> *[Cursor](https://github.com/elder-plinius/CL4R1T4S/blob/5bfeb51/CURSOR/Cursor_2.0_Sys_Prompt.txt?plain=1#L15)*
+> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L107)*
 > 
 
-Check out the self-awareness level: telling an LLM not to sound like an LLM.
-"I'm trying to free your mind, Neo. But I can only show you the door. You're the one that has to walk through it."
+The model was just... banging its head against the same file over and over. Three strikes and you must re-read. A very specific intervention for a very specific failure mode.
 
+
+## Ones that stumped me
 ---
 
-#13
-
-> ALWAYS, keep it stupidly simple. Do not overcomplicate things.
+> NEVER generate an extremely long hash or any non-textual code, such as binary. These are not helpful to the USER and are very expensive.
 > 
 > 
-> *[Kimi CLI](https://github.com/MoonshotAI/kimi-cli/blob/1c91307/src/kimi_cli/agents/default/system.md?plain=1#L23)*
+> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L106)*
 > 
 
-🧑‍🍳’s KISS
+The model was... generating binary. And this was important enough to put into the system prompt with a `NEVER` in caps. The model is pre-trained on enough binary or hex information? I haven't seen or heard about this happening in practice. Is this truly an edge case fix showing up in system prompts?
 
 ---
 
@@ -289,17 +266,6 @@ A coding CLI with a built-in sticker shipping form. And they had to add negative
 
 The irony of adding tokens to the system prompt telling the model to use fewer tokens.
 
----
-
-#23
-
-> Do not attempt to call ApplyPatch more than three times consecutively on the same file without calling Read on that file to re-confirm its contents.
-> 
-> 
-> *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L107)*
-> 
-
-The model was just... banging its head against the same file over and over. Three strikes and you must re-read. A very specific intervention for a very specific failure mode.
 
 ---
 
