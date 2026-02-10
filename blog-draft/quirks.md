@@ -72,7 +72,7 @@ Interesting. Two observations here:
 > *[Claude Code](https://github.com/Piebald-AI/claude-code-system-prompts/blob/7843e6a/system-prompts/system-prompt-main-system-prompt.md?plain=1#L43)*
 >
 
-The anti-sycophancy patch, a note taped to the bathroom mirror.
+The anti-sycophancy patch. This didn't work well enough, famously. And it seems to have been [taken out](https://cchistory.mariozechner.at/?from=2.1.32&to=2.1.33) with the rest of the `## Tone and Style` section with the release of Opus 4.6. Yay RL for anti-sycophancy!
 
 ---
 
