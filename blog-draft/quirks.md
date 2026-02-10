@@ -4,6 +4,8 @@ System prompts often expose a system’s engineering scars. Much like the small 
 
 I’m going to walk through a few of these peculiar system-prompt patches in some coding agents and offer some conjectures about the underlying model behaviors they’re meant to address.
 
+---
+
 > IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming.
 >
 >
@@ -16,8 +18,6 @@ Allowing URL guesses when they help with programming also implies that the main 
 
 ---
 
-#2
-
 > Refer to code changes as "edits" not "patches".
 >
 >
@@ -28,19 +28,17 @@ Given this is for a GPT model, I'd bet this is to fight the context-distraction 
 
 ---
 
-#3
-
 > NEVER talk to the user or describe your changes through comments.
 >
 >
 > *[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/e79b149/packages/core/src/core/prompts.ts?plain=1#L147)*
 >
 
-Anti-comment instructions are pretty universal, or at least, used to be. But I find it funny that the model was trying to talk to the user through comments. I guess we can’t blame it for learning this from humans.
+Anti-comment instructions are [pretty universal](link to other blog post). However, _talking to the user through comments_ is weird. That implies they saw a failure mode where the model treats the codebase as a secondary chat window—leaving explanations, status updates, or “notes to you” inline.
+
+This behaviour is similar to Claude [reasoning in comments](https://x.com/aidenybai/status/1993901129210712129), I suppose, where the model is trained to spend tokens for thinking. Did the developers mis-interpret this as talking to the user (vs talking to itself)? Perhaps the training indexed more on the explanatory / tutorial code where there's a mentor talking to the user through comments. Could be both, I suppose.
 
 ---
-
-#4
 
 > Users love it when you organize your messages using '###' headings and '##' headings. Never use '#' headings as users find them overwhelming.
 > 
@@ -48,7 +46,9 @@ Anti-comment instructions are pretty universal, or at least, used to be. But I f
 > *[Cursor](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools/blob/8ffe2e8/Cursor%20Prompts/Agent%20Prompt%202025-09-03.txt?plain=1#L204)*
 > 
 
-Somewhere there's a doc titled "H1 Considered Harmful." I wonder if someone at Cursor ran experiments on heading sizes, concluded that `#` headings are emotionally overwhelming, and escalated this finding all the way into the system prompt.
+Huh, "H1 considered harmful", [TIL](https://meta.stackexchange.com/questions/214427/is-using-heading-markdown-okay-in-answers). It looks like this isn't "general knowledge" enough to be captured in pretraining, but annoying enough in practice to add to a `<markdown_spec>`.
+
+I do think the more interesting question is where Cursor got this from: it reads less like general markdown etiquette and more like an observation from their product surface—either internal UX testing, telemetry, or repeated user feedback along the lines of “stop shouting with giant headers.”
 
 ---
 
