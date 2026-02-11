@@ -78,7 +78,6 @@
             border-color: #78909C;
         }
         .chart-container {
-            background: #f9f9f9;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 30px;
@@ -89,16 +88,15 @@
         .chart-wrapper {
             position: relative;
             height: 500px;
+            overflow: visible;
         }
         .legend-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             gap: 15px;
-            margin-top: 20px;
+            margin-bottom: 10px;
             padding: 15px;
-            background: #fff;
-            border-radius: 8px;
         }
         .legend-item {
             display: flex;
@@ -123,7 +121,6 @@
             border-bottom: 1px solid #e0e0e0;
         }
         th {
-            background: #f0f0f0;
             color: #555;
             font-weight: 500;
         }
@@ -143,6 +140,62 @@
             color: #333;
             margin-bottom: 15px;
         }
+        .custom-tooltip {
+            display: none;
+            position: absolute;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px 12px;
+            pointer-events: none;
+            z-index: 10;
+            font-size: 12px;
+            color: #444;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            min-width: 200px;
+        }
+        .custom-tooltip table {
+            width: 100%;
+            margin-top: 0;
+            font-size: 12px;
+            border-collapse: collapse;
+        }
+        .custom-tooltip th {
+            font-weight: 500;
+            color: #999;
+            text-align: right;
+            padding: 2px 0 4px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .custom-tooltip th:first-child {
+            text-align: left;
+            padding-left: 0;
+            font-weight: 600;
+            color: #222;
+        }
+        .custom-tooltip td {
+            padding: 3px 0 3px 10px;
+            text-align: right;
+            border-bottom: none;
+        }
+        .custom-tooltip td:first-child {
+            text-align: left;
+            padding-left: 0;
+        }
+        .custom-tooltip .tt-swatch {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .custom-tooltip .tt-total td {
+            font-weight: 600;
+            color: #222;
+            border-top: 1px solid #ddd;
+            padding-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -156,12 +209,13 @@
         <button id="btnCompare" class="toggle-btn compare">Compare Totals</button>
     </div>
 
-    <div class="chart-container">
+    <div class="chart-container" style="position: relative;">
+        <div id="customTooltip" class="custom-tooltip"></div>
         <div class="chart-title" id="chartTitle">Claude Code Prompt Evolution (May 2025 - February 2026)</div>
+        <div class="legend-container" id="customLegend"></div>
         <div class="chart-wrapper">
             <canvas id="mainChart"></canvas>
         </div>
-        <div class="legend-container" id="customLegend"></div>
     </div>
 
     <div class="chart-container" id="tableContainer">
@@ -435,6 +489,7 @@
         // ============ CODEX MODELS ONLY DATA ============
         const codexOnlyData = [
             {
+                "date": "2025-09-14",
                 "label": "Sep 14 - Swiftfox (916fd)",
                 "totalTokens": 2166,
                 "componentTokens": {
@@ -443,6 +498,7 @@
                 }
             },
             {
+                "date": "2025-09-14T06:00",
                 "label": "Sep 14 - Swiftfox (a7970)",
                 "totalTokens": 1911,
                 "componentTokens": {
@@ -451,6 +507,7 @@
                 }
             },
             {
+                "date": "2025-09-15",
                 "label": "Sep 15 - Swiftfox (d60cb)",
                 "totalTokens": 2082,
                 "componentTokens": {
@@ -459,6 +516,7 @@
                 }
             },
             {
+                "date": "2025-09-15T06:00",
                 "label": "Sep 15 - Swiftfox (f037b)",
                 "totalTokens": 2087,
                 "componentTokens": {
@@ -467,6 +525,7 @@
                 }
             },
             {
+                "date": "2025-09-17",
                 "label": "Sep 17 - Swiftfox",
                 "totalTokens": 2226,
                 "componentTokens": {
@@ -475,6 +534,7 @@
                 }
             },
             {
+                "date": "2025-09-30",
                 "label": "Sep 30 - Swiftfox",
                 "totalTokens": 2292,
                 "componentTokens": {
@@ -483,6 +543,7 @@
                 }
             },
             {
+                "date": "2025-10-01",
                 "label": "Oct 01 - Swiftfox (5d78c)",
                 "totalTokens": 2226,
                 "componentTokens": {
@@ -491,6 +552,7 @@
                 }
             },
             {
+                "date": "2025-10-01T06:00",
                 "label": "Oct 01 - Swiftfox (35c76)",
                 "totalTokens": 2228,
                 "componentTokens": {
@@ -499,6 +561,7 @@
                 }
             },
             {
+                "date": "2025-10-04",
                 "label": "Oct 04 - Swiftfox",
                 "totalTokens": 2336,
                 "componentTokens": {
@@ -507,6 +570,7 @@
                 }
             },
             {
+                "date": "2025-11-06",
                 "label": "Nov 06 - Swiftfox",
                 "totalTokens": 2349,
                 "componentTokens": {
@@ -515,6 +579,7 @@
                 }
             },
             {
+                "date": "2025-11-17",
                 "label": "Nov 17 - Swiftfox",
                 "totalTokens": 2295,
                 "componentTokens": {
@@ -523,6 +588,7 @@
                 }
             },
             {
+                "date": "2025-11-18",
                 "label": "Nov 18 - Arcticfox",
                 "totalTokens": 2484,
                 "componentTokens": {
@@ -531,6 +597,7 @@
                 }
             },
             {
+                "date": "2025-11-19",
                 "label": "Nov 19 - 5.1-Codex-Max",
                 "totalTokens": 2483,
                 "componentTokens": {
@@ -539,6 +606,7 @@
                 }
             },
             {
+                "date": "2025-12-10",
                 "label": "Dec 10 - Swiftfox",
                 "totalTokens": 2286,
                 "componentTokens": {
@@ -547,6 +615,7 @@
                 }
             },
             {
+                "date": "2025-12-10T06:00",
                 "label": "Dec 10 - 5.1-Codex-Max",
                 "totalTokens": 2474,
                 "componentTokens": {
@@ -555,6 +624,7 @@
                 }
             },
             {
+                "date": "2025-12-18",
                 "label": "Dec 18 - 5.2-Codex",
                 "totalTokens": 2474,
                 "componentTokens": {
@@ -563,6 +633,7 @@
                 }
             },
             {
+                "date": "2026-01-12",
                 "label": "Jan 12 - Swiftfox",
                 "totalTokens": 1435,
                 "componentTokens": {
@@ -571,6 +642,7 @@
                 }
             },
             {
+                "date": "2026-01-12T06:00",
                 "label": "Jan 12 - 5.1-Codex-Max",
                 "totalTokens": 1623,
                 "componentTokens": {
@@ -579,6 +651,7 @@
                 }
             },
             {
+                "date": "2026-01-12T12:00",
                 "label": "Jan 12 - 5.2-Codex",
                 "totalTokens": 1623,
                 "componentTokens": {
@@ -587,6 +660,7 @@
                 }
             },
             {
+                "date": "2026-02-05",
                 "label": "Feb 05 - 5.3-Codex",
                 "totalTokens": 2526,
                 "componentTokens": {
@@ -597,10 +671,10 @@
         ];
 
         const codexOnlyModelReleases = [
-            { categoryLabel: 'Sep 15 - Swiftfox (d60cb)', label: 'GPT-5-Codex' },
-            { categoryLabel: 'Nov 19 - 5.1-Codex-Max', label: 'GPT-5.1-Codex-Max' },
-            { categoryLabel: 'Dec 18 - 5.2-Codex', label: 'GPT-5.2-Codex' },
-            { categoryLabel: 'Feb 05 - 5.3-Codex', label: 'GPT-5.3-Codex' }
+            { date: '2025-09-15', label: 'GPT-5-Codex' },
+            { date: '2025-11-19', label: 'GPT-5.1-Codex-Max' },
+            { date: '2025-12-18', label: 'GPT-5.2-Codex' },
+            { date: '2026-02-05', label: 'GPT-5.3-Codex' }
         ];
 
         const colors = {
@@ -635,38 +709,12 @@
                     label: {
                         display: true,
                         content: release.label,
-                        position: 'start',
+                        position: 'end',
                         backgroundColor: color + 'CC',
                         color: '#fff',
                         font: { size: 10, weight: 'bold' },
                         padding: 3,
-                        yAdjust: -10
-                    }
-                };
-            });
-            return annotations;
-        }
-
-        // Build annotations for category axis
-        function buildCategoryAnnotations(releases, color) {
-            const annotations = {};
-            releases.forEach((release, i) => {
-                annotations[`line${i}`] = {
-                    type: 'line',
-                    xMin: release.categoryLabel,
-                    xMax: release.categoryLabel,
-                    borderColor: color,
-                    borderWidth: 2,
-                    borderDash: [6, 4],
-                    label: {
-                        display: true,
-                        content: release.label,
-                        position: 'start',
-                        backgroundColor: color + 'CC',
-                        color: '#fff',
-                        font: { size: 10, weight: 'bold' },
-                        padding: 3,
-                        yAdjust: -10
+                        yAdjust: 0
                     }
                 };
             });
@@ -691,40 +739,6 @@
             datasets.push({
                 label: 'Total Tokens',
                 data: data.map(d => ({ x: d.date, y: d.totalTokens })),
-                backgroundColor: 'transparent',
-                borderColor: '#333333',
-                borderWidth: 3,
-                borderDash: [5, 5],
-                fill: false,
-                tension: 0,
-                pointRadius: 6,
-                pointHoverRadius: 8,
-                pointBackgroundColor: '#333333',
-                stack: 'total',
-                order: -1
-            });
-
-            return datasets;
-        }
-
-        // Build stacked datasets (category axis)
-        function buildCategoryDatasets(data) {
-            const datasets = components.map((comp) => ({
-                label: comp,
-                data: data.map(d => d.componentTokens[comp] || 0),
-                backgroundColor: colors[comp],
-                borderColor: colors[comp],
-                borderWidth: 1,
-                fill: true,
-                tension: 0,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                stack: 'components'
-            }));
-
-            datasets.push({
-                label: 'Total Tokens',
-                data: data.map(d => d.totalTokens),
                 backgroundColor: 'transparent',
                 borderColor: '#333333',
                 borderWidth: 3,
@@ -785,12 +799,12 @@
                     label: {
                         display: true,
                         content: release.label,
-                        position: 'start',
+                        position: 'end',
                         backgroundColor: '#E54B6BCC',
                         color: '#fff',
                         font: { size: 9, weight: 'bold' },
                         padding: 2,
-                        yAdjust: -10
+                        yAdjust: 0
                     }
                 };
             });
@@ -810,7 +824,7 @@
                         color: '#fff',
                         font: { size: 9, weight: 'bold' },
                         padding: 2,
-                        yAdjust: 10
+                        yAdjust: 20
                     }
                 };
             });
@@ -829,25 +843,25 @@
                 annotations = buildAnnotations(claudeModelReleases, '#E54B6B');
                 title = 'Claude Code Prompt Evolution (May 2025 - February 2026)';
                 chartData = { datasets };
-                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#e0e0e0' }, ticks: { color: '#666' } };
+                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#f0f0f0' }, ticks: { color: '#666' } };
             } else if (view === 'codex') {
                 datasets = buildStackedDatasets(codexSimplified);
                 annotations = buildAnnotations(codexModelReleases, '#6B9ECE');
                 title = 'Codex CLI Prompt Evolution (April 2025 - February 2026)';
                 chartData = { datasets };
-                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#e0e0e0' }, ticks: { color: '#666' } };
+                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#f0f0f0' }, ticks: { color: '#666' } };
             } else if (view === 'codexOnly') {
-                datasets = buildCategoryDatasets(codexOnlyData);
-                annotations = buildCategoryAnnotations(codexOnlyModelReleases, '#4A90D9');
+                datasets = buildStackedDatasets(codexOnlyData);
+                annotations = buildAnnotations(codexOnlyModelReleases, '#4A90D9');
                 title = 'Codex Models Prompt Evolution (September 2025 - February 2026)';
-                chartData = { labels: codexOnlyData.map(d => d.label), datasets };
-                xScale = { type: 'category', grid: { color: '#e0e0e0' }, ticks: { color: '#666', maxRotation: 60, minRotation: 40, font: { size: 10 } } };
+                chartData = { datasets };
+                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#f0f0f0' }, ticks: { color: '#666' } };
             } else {
                 datasets = buildCompareDatasets();
                 annotations = buildCombinedAnnotations();
                 title = 'Total Tokens Comparison: Claude Code vs Codex CLI';
                 chartData = { datasets };
-                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#e0e0e0' }, ticks: { color: '#666' } };
+                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#f0f0f0' }, ticks: { color: '#666' } };
             }
 
             document.getElementById('chartTitle').textContent = title;
@@ -858,29 +872,58 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: { padding: { top: 30 } },
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: '#fff',
-                            titleColor: '#222',
-                            bodyColor: '#444',
-                            borderColor: '#ddd',
-                            borderWidth: 1,
-                            padding: 12,
-                            callbacks: {
-                                title: function(context) {
-                                    if (view === 'compare') return context[0].raw.x;
-                                    if (view === 'codexOnly') return codexOnlyData[context[0].dataIndex].label;
-                                    const data = view === 'claude' ? claudeSimplified : codexSimplified;
-                                    const idx = data.findIndex(d => d.date === context[0].raw.x);
-                                    return idx >= 0 ? data[idx].label : context[0].label;
-                                },
-                                label: function(context) {
-                                    const val = view === 'codexOnly' ? context.raw : context.raw.y;
-                                    if (val === 0) return null;
-                                    return `${context.dataset.label}: ${val.toLocaleString()} tokens`;
+                            enabled: false,
+                            external: function(context) {
+                                const tooltip = document.getElementById('customTooltip');
+                                if (context.tooltip.opacity === 0) {
+                                    tooltip.style.display = 'none';
+                                    return;
                                 }
+
+                                const dataIndex = context.tooltip.dataPoints[0].dataIndex;
+                                const dataLookup = view === 'claude' ? claudeSimplified : view === 'codexOnly' ? codexOnlyData : view === 'codex' ? codexSimplified : null;
+
+                                let html = '';
+                                if (view === 'compare') {
+                                    const claudeVal = claudeSimplified[dataIndex] ? claudeSimplified[dataIndex].totalTokens : null;
+                                    const codexVal = codexSimplified[dataIndex] ? codexSimplified[dataIndex].totalTokens : null;
+                                    html = '<table>';
+                                    context.tooltip.dataPoints.forEach(dp => {
+                                        html += `<tr><td><span class="tt-swatch" style="background:${dp.dataset.borderColor}"></span>${dp.dataset.label}</td><td>${dp.raw.y.toLocaleString()}</td></tr>`;
+                                    });
+                                    html += '</table>';
+                                } else {
+                                    const entry = dataLookup[dataIndex];
+                                    const title = entry ? entry.label : '';
+                                    const total = entry ? entry.totalTokens : 0;
+                                    html = '<table><thead><tr><th>' + title + '</th><th>Tokens</th><th>%</th></tr></thead><tbody>';
+                                    components.forEach(comp => {
+                                        const val = entry.componentTokens[comp] || 0;
+                                        if (val === 0) return;
+                                        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
+                                        html += `<tr><td><span class="tt-swatch" style="background:${colors[comp]}"></span>${comp}</td><td>${val.toLocaleString()}</td><td>${pct}%</td></tr>`;
+                                    });
+                                    html += `</tbody><tr class="tt-total"><td>Total</td><td>${total.toLocaleString()}</td><td>100%</td></tr></table>`;
+                                }
+
+                                tooltip.innerHTML = html;
+                                tooltip.style.display = 'block';
+
+                                const chartArea = context.chart.chartArea;
+                                let left = context.tooltip.caretX + 15;
+                                let top = context.tooltip.caretY - tooltip.offsetHeight / 2;
+                                if (left + tooltip.offsetWidth > chartArea.right + 40) {
+                                    left = context.tooltip.caretX - tooltip.offsetWidth - 15;
+                                }
+                                if (top < chartArea.top) top = chartArea.top;
+                                if (top + tooltip.offsetHeight > chartArea.bottom) top = chartArea.bottom - tooltip.offsetHeight;
+                                tooltip.style.left = left + 'px';
+                                tooltip.style.top = top + 'px';
                             }
                         },
                         annotation: { annotations }
@@ -889,7 +932,7 @@
                         x: xScale,
                         y: {
                             stacked: view !== 'compare',
-                            grid: { color: '#e0e0e0' },
+                            grid: { color: '#f0f0f0' },
                             ticks: { color: '#666', callback: v => v.toLocaleString() },
                             title: { display: true, text: 'Tokens', color: '#666' }
                         }
