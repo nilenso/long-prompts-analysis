@@ -69,6 +69,10 @@
             background: #6B9ECE;
             border-color: #6B9ECE;
         }
+        .toggle-btn.codex-only.active {
+            background: #4A90D9;
+            border-color: #4A90D9;
+        }
         .toggle-btn.compare.active {
             background: #78909C;
             border-color: #78909C;
@@ -148,6 +152,7 @@
     <div class="toggle-container">
         <button id="btnClaude" class="toggle-btn claude active">Claude Code</button>
         <button id="btnCodex" class="toggle-btn codex">Codex CLI</button>
+        <button id="btnCodexOnly" class="toggle-btn codex-only">Codex Models Only</button>
         <button id="btnCompare" class="toggle-btn compare">Compare Totals</button>
     </div>
 
@@ -427,6 +432,177 @@
             { date: '2026-02-05', label: 'GPT-5.3' }
         ];
 
+        // ============ CODEX MODELS ONLY DATA ============
+        const codexOnlyData = [
+            {
+                "label": "Sep 14 - Swiftfox (916fd)",
+                "totalTokens": 2166,
+                "componentTokens": {
+                    "Personality & Steering": 22, "Workflow Guidance": 1138,
+                    "Environment Details": 713, "Code Style": 293
+                }
+            },
+            {
+                "label": "Sep 14 - Swiftfox (a7970)",
+                "totalTokens": 1911,
+                "componentTokens": {
+                    "Personality & Steering": 22, "Tool Descriptions & Instructions": 105,
+                    "Workflow Guidance": 769, "Environment Details": 722, "Code Style": 293
+                }
+            },
+            {
+                "label": "Sep 15 - Swiftfox (d60cb)",
+                "totalTokens": 2082,
+                "componentTokens": {
+                    "Personality & Steering": 22, "Tool Descriptions & Instructions": 166,
+                    "Workflow Guidance": 708, "Environment Details": 722, "Code Style": 464
+                }
+            },
+            {
+                "label": "Sep 15 - Swiftfox (f037b)",
+                "totalTokens": 2087,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 826,
+                    "Workflow Guidance": 465, "Personality & Steering": 304, "Code Style": 464
+                }
+            },
+            {
+                "label": "Sep 17 - Swiftfox",
+                "totalTokens": 2226,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 965,
+                    "Workflow Guidance": 465, "Personality & Steering": 304, "Code Style": 464
+                }
+            },
+            {
+                "label": "Sep 30 - Swiftfox",
+                "totalTokens": 2292,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 1031,
+                    "Workflow Guidance": 465, "Personality & Steering": 304, "Code Style": 464
+                }
+            },
+            {
+                "label": "Oct 01 - Swiftfox (5d78c)",
+                "totalTokens": 2226,
+                "componentTokens": {
+                    "Environment Details": 592, "Tool Descriptions & Instructions": 105,
+                    "Workflow Guidance": 761, "Personality & Steering": 304, "Code Style": 464
+                }
+            },
+            {
+                "label": "Oct 01 - Swiftfox (35c76)",
+                "totalTokens": 2228,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 965,
+                    "Workflow Guidance": 465, "Code Style": 770
+                }
+            },
+            {
+                "label": "Oct 04 - Swiftfox",
+                "totalTokens": 2336,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 965,
+                    "Workflow Guidance": 573, "Personality & Steering": 304, "Code Style": 466
+                }
+            },
+            {
+                "label": "Nov 06 - Swiftfox",
+                "totalTokens": 2349,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 965,
+                    "Workflow Guidance": 586, "Personality & Steering": 304, "Code Style": 466
+                }
+            },
+            {
+                "label": "Nov 17 - Swiftfox",
+                "totalTokens": 2295,
+                "componentTokens": {
+                    "Environment Details": 28, "Workflow Guidance": 880,
+                    "Tool Descriptions & Instructions": 921, "Code Style": 466
+                }
+            },
+            {
+                "label": "Nov 18 - Arcticfox",
+                "totalTokens": 2484,
+                "componentTokens": {
+                    "Environment Details": 28, "Workflow Guidance": 880,
+                    "Tool Descriptions & Instructions": 921, "Code Style": 655
+                }
+            },
+            {
+                "label": "Nov 19 - 5.1-Codex-Max",
+                "totalTokens": 2483,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 911,
+                    "Workflow Guidance": 890, "Personality & Steering": 198, "Code Style": 456
+                }
+            },
+            {
+                "label": "Dec 10 - Swiftfox",
+                "totalTokens": 2286,
+                "componentTokens": {
+                    "Environment Details": 28, "Workflow Guidance": 576,
+                    "Tool Descriptions & Instructions": 912, "Personality & Steering": 304, "Code Style": 466
+                }
+            },
+            {
+                "label": "Dec 10 - 5.1-Codex-Max",
+                "totalTokens": 2474,
+                "componentTokens": {
+                    "Environment Details": 28, "Workflow Guidance": 880,
+                    "Tool Descriptions & Instructions": 912, "Personality & Steering": 198, "Code Style": 456
+                }
+            },
+            {
+                "label": "Dec 18 - 5.2-Codex",
+                "totalTokens": 2474,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 963,
+                    "Workflow Guidance": 525, "Code Style": 198, "Personality & Steering": 760
+                }
+            },
+            {
+                "label": "Jan 12 - Swiftfox",
+                "totalTokens": 1435,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 112,
+                    "Workflow Guidance": 829, "Code Style": 466
+                }
+            },
+            {
+                "label": "Jan 12 - 5.1-Codex-Max",
+                "totalTokens": 1623,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 112,
+                    "Workflow Guidance": 829, "Personality & Steering": 198, "Code Style": 456
+                }
+            },
+            {
+                "label": "Jan 12 - 5.2-Codex",
+                "totalTokens": 1623,
+                "componentTokens": {
+                    "Environment Details": 28, "Tool Descriptions & Instructions": 112,
+                    "Workflow Guidance": 525, "Personality & Steering": 198, "Code Style": 760
+                }
+            },
+            {
+                "label": "Feb 05 - 5.3-Codex",
+                "totalTokens": 2526,
+                "componentTokens": {
+                    "Personality & Steering": 369, "Tool Descriptions & Instructions": 103,
+                    "Workflow Guidance": 1459, "Code Style": 595
+                }
+            }
+        ];
+
+        const codexOnlyModelReleases = [
+            { categoryLabel: 'Sep 15 - Swiftfox (d60cb)', label: 'GPT-5-Codex' },
+            { categoryLabel: 'Nov 19 - 5.1-Codex-Max', label: 'GPT-5.1-Codex-Max' },
+            { categoryLabel: 'Dec 18 - 5.2-Codex', label: 'GPT-5.2-Codex' },
+            { categoryLabel: 'Feb 05 - 5.3-Codex', label: 'GPT-5.3-Codex' }
+        ];
+
         const colors = {
             'Code Style': '#6B9ECE',
             'Environment Details': '#3CB4A4',
@@ -471,7 +647,33 @@
             return annotations;
         }
 
-        // Build stacked datasets
+        // Build annotations for category axis
+        function buildCategoryAnnotations(releases, color) {
+            const annotations = {};
+            releases.forEach((release, i) => {
+                annotations[`line${i}`] = {
+                    type: 'line',
+                    xMin: release.categoryLabel,
+                    xMax: release.categoryLabel,
+                    borderColor: color,
+                    borderWidth: 2,
+                    borderDash: [6, 4],
+                    label: {
+                        display: true,
+                        content: release.label,
+                        position: 'start',
+                        backgroundColor: color + 'CC',
+                        color: '#fff',
+                        font: { size: 10, weight: 'bold' },
+                        padding: 3,
+                        yAdjust: -10
+                    }
+                };
+            });
+            return annotations;
+        }
+
+        // Build stacked datasets (time axis)
         function buildStackedDatasets(data) {
             const datasets = components.map((comp) => ({
                 label: comp,
@@ -489,6 +691,40 @@
             datasets.push({
                 label: 'Total Tokens',
                 data: data.map(d => ({ x: d.date, y: d.totalTokens })),
+                backgroundColor: 'transparent',
+                borderColor: '#333333',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                fill: false,
+                tension: 0,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                pointBackgroundColor: '#333333',
+                stack: 'total',
+                order: -1
+            });
+
+            return datasets;
+        }
+
+        // Build stacked datasets (category axis)
+        function buildCategoryDatasets(data) {
+            const datasets = components.map((comp) => ({
+                label: comp,
+                data: data.map(d => d.componentTokens[comp] || 0),
+                backgroundColor: colors[comp],
+                borderColor: colors[comp],
+                borderWidth: 1,
+                fill: true,
+                tension: 0,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                stack: 'components'
+            }));
+
+            datasets.push({
+                label: 'Total Tokens',
+                data: data.map(d => d.totalTokens),
                 backgroundColor: 'transparent',
                 borderColor: '#333333',
                 borderWidth: 3,
@@ -586,27 +822,39 @@
             if (chart) chart.destroy();
 
             const ctx = document.getElementById('mainChart').getContext('2d');
-            let datasets, annotations, title;
+            let datasets, annotations, title, chartData, xScale;
 
             if (view === 'claude') {
                 datasets = buildStackedDatasets(claudeSimplified);
                 annotations = buildAnnotations(claudeModelReleases, '#E54B6B');
                 title = 'Claude Code Prompt Evolution (May 2025 - February 2026)';
+                chartData = { datasets };
+                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#e0e0e0' }, ticks: { color: '#666' } };
             } else if (view === 'codex') {
                 datasets = buildStackedDatasets(codexSimplified);
                 annotations = buildAnnotations(codexModelReleases, '#6B9ECE');
                 title = 'Codex CLI Prompt Evolution (April 2025 - February 2026)';
+                chartData = { datasets };
+                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#e0e0e0' }, ticks: { color: '#666' } };
+            } else if (view === 'codexOnly') {
+                datasets = buildCategoryDatasets(codexOnlyData);
+                annotations = buildCategoryAnnotations(codexOnlyModelReleases, '#4A90D9');
+                title = 'Codex Models Prompt Evolution (September 2025 - February 2026)';
+                chartData = { labels: codexOnlyData.map(d => d.label), datasets };
+                xScale = { type: 'category', grid: { color: '#e0e0e0' }, ticks: { color: '#666', maxRotation: 60, minRotation: 40, font: { size: 10 } } };
             } else {
                 datasets = buildCompareDatasets();
                 annotations = buildCombinedAnnotations();
                 title = 'Total Tokens Comparison: Claude Code vs Codex CLI';
+                chartData = { datasets };
+                xScale = { type: 'time', time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } }, grid: { color: '#e0e0e0' }, ticks: { color: '#666' } };
             }
 
             document.getElementById('chartTitle').textContent = title;
 
             chart = new Chart(ctx, {
                 type: 'line',
-                data: { datasets },
+                data: chartData,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -623,12 +871,13 @@
                             callbacks: {
                                 title: function(context) {
                                     if (view === 'compare') return context[0].raw.x;
+                                    if (view === 'codexOnly') return codexOnlyData[context[0].dataIndex].label;
                                     const data = view === 'claude' ? claudeSimplified : codexSimplified;
                                     const idx = data.findIndex(d => d.date === context[0].raw.x);
                                     return idx >= 0 ? data[idx].label : context[0].label;
                                 },
                                 label: function(context) {
-                                    const val = context.raw.y;
+                                    const val = view === 'codexOnly' ? context.raw : context.raw.y;
                                     if (val === 0) return null;
                                     return `${context.dataset.label}: ${val.toLocaleString()} tokens`;
                                 }
@@ -637,12 +886,7 @@
                         annotation: { annotations }
                     },
                     scales: {
-                        x: {
-                            type: 'time',
-                            time: { unit: 'month', displayFormats: { month: 'MMM yyyy' } },
-                            grid: { color: '#e0e0e0' },
-                            ticks: { color: '#666' }
-                        },
+                        x: xScale,
                         y: {
                             stacked: view !== 'compare',
                             grid: { color: '#e0e0e0' },
@@ -701,7 +945,7 @@
             }
 
             tableContainer.style.display = 'block';
-            const data = view === 'claude' ? claudeSimplified : codexSimplified;
+            const data = view === 'claude' ? claudeSimplified : view === 'codexOnly' ? codexOnlyData : codexSimplified;
 
             let html = '<thead><tr><th>Version</th><th>Total</th>';
             components.forEach(c => html += `<th>${c}</th>`);
@@ -731,6 +975,12 @@
             document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             createChart('codex');
+        });
+
+        document.getElementById('btnCodexOnly').addEventListener('click', function() {
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            createChart('codexOnly');
         });
 
         document.getElementById('btnCompare').addEventListener('click', function() {
