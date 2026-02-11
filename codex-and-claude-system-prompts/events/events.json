@@ -111,5 +111,19 @@
     "to_tokens": 5451,
     "token_delta": -613,
     "file": "gpt-5.2-released.md"
+  },
+  {
+    "name": "Claude Opus 4.6 released",
+    "release_date": "2026-02-05",
+    "vendor": "anthropic",
+    "from_date": "2026-02-05",
+    "to_date": "2026-02-05"
+  },
+  {
+    "name": "GPT-5.3 released",
+    "release_date": "2026-02-05",
+    "vendor": "openai",
+    "from_date": "2026-02-05",
+    "to_date": "2026-02-05"
   }
 ]
