@@ -1,8 +1,8 @@
 # Codex CLI vs Claude Code on autonomy
 
-I spent some time studying the system prompts of coding agent harnesses like [Codex CLI](https://github.com/openai/codex/blob/main/codex-rs/core/gpt_5_2_prompt.md) and [Claude Code](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code-2025-11-1.md). These prompts reveal the priorities, values, and scars of their products. They’re both only a few pages long and are worth reading in full, especially if you use them every day. This is a more grounded approach to understanding these products than the vibe-based analysis you might see on your timeline.
+I spent some time studying the system prompts of coding agent harnesses like [Codex CLI](https://github.com/openai/codex/blob/main/codex-rs/core/gpt_5_2_prompt.md) and [Claude Code](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code-2025-11-1.md). These prompts reveal the priorities, values, and scars of their products. They’re only a few pages each and worth reading in full, especially if you use them every day. This approach to understanding such products is more grounded than the vibe-based takes you often see in feeds.
 
-While there are many similarities and differences between them, one of the most well-perceived differences between Claude Code and Codex CLI is **autonomy**, and in this post I’ll share what I observed. We tend to perceive autonomous behaviour as long-running, independent, or requiring less supervision and guidance. Reading the system prompts, it becomes apparent that _the products make very different, and very intentional choices_.
+While there are many similarities and differences between them, one of the most commonly perceived differences between Claude Code and Codex CLI is **autonomy**, and in this post I’ll share what I observed. We tend to perceive autonomous behaviour as long-running, independent, or requiring less supervision and guidance. Reading the system prompts, it becomes apparent that _the products make very different, and very intentional choices_.
 
 ### You are a…
 
@@ -22,7 +22,7 @@ Both of them seem to be moving towards more autonomy, with assistant -> coding a
 
 ### Should it stop and ask questions, or keep going?
 
-Codex has a critical and [explicit section](https://github.com/openai/codex/blob/932a5a446f42e566c0dbd3004ae2cee50cdcc0ce/codex-rs/core/gpt_5_2_prompt.md#autonomy-and-persistence) for “Autonomy and Persistence” for the non-Codex models. 
+Codex includes a critical and [explicit section](https://github.com/openai/codex/blob/932a5a446f42e566c0dbd3004ae2cee50cdcc0ce/codex-rs/core/gpt_5_2_prompt.md#autonomy-and-persistence) for “Autonomy and Persistence” for the non-Codex models. 
 
 > Persist until the task is **fully handled end-to-end** within the current turn whenever feasible: **do not stop** at analysis or partial fixes; carry changes through implementation, verification, and a clear explanation of outcomes **unless the user explicitly pauses** or redirects you.
 
@@ -34,7 +34,7 @@ If I were the model reading these instructions, I would take this to mean: “I 
 
 ---
 
-Claude, on the other hand, has a “Asking questions as you work” [section](https://gist.github.com/chigkim/1f37bb2be98d97c952fd79cbb3efb1c6#file-claude-code-txt-L72), and a `AskUserQuestion` [tool](https://github.com/Piebald-AI/claude-code-system-prompts/blob/c3115b8df18bdbf13dc6bf6e983afd67ec852332/system-prompts/tool-description-askuserquestion.md?plain=1#L4), that it is explicitly encouraged to use:
+Claude, on the other hand, has an “Asking questions as you work” [section](https://gist.github.com/chigkim/1f37bb2be98d97c952fd79cbb3efb1c6#file-claude-code-txt-L72), and a `AskUserQuestion` [tool](https://github.com/Piebald-AI/claude-code-system-prompts/blob/c3115b8df18bdbf13dc6bf6e983afd67ec852332/system-prompts/tool-description-askuserquestion.md?plain=1#L4), that it is explicitly encouraged to use:
 
 > You have access to the AskUserQuestion tool to ask the user questions when you need clarification, want **to validate assumptions**, or need **to make a decision** you're unsure about.
 Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message.
