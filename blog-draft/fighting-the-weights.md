@@ -1,4 +1,4 @@
-# System prompts fighting the weights, and conjectures
+# How System Prompts Reveal Model Biases
 
 The system prompts of coding agents show their growth scars. Developers use these prompts to patch bad behavior or force good behavior. Some of these patches are clear examples of [fighting-the-weights](https://www.dbreunig.com/2025/11/11/don-t-fight-the-weights.html), where one has to repeat the instructions, or say it in ALL CAPS, or use forceful language like NEVER, ALWAYS, etc.
 
