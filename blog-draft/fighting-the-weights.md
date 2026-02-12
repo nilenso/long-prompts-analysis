@@ -1,12 +1,10 @@
-[DRAFT]
-
 # System prompts fighting the weights, and conjectures
 
-[This intro gets to the point, but isn't well written. Need to redo.]
-The system prompts of coding agent harnesses reveal the scars. The makers of the harnesses use the system prompts to patch up undesired behaviour, or to reinforce some desired behaviour.
-Among these, are interesting instances of [fighting-the-weights](https://www.dbreunig.com/2025/11/11/don-t-fight-the-weights.html). Having to fight these weights implies the model is biased in specific ways. 
-And knowing those biases is very useful when we're using these models every day for work.
-Further, we can also come up with meaningful conjectures on why the model is biased in that specific way. And that might reveal _other_ biases.
+The system prompts of coding agents show their growth scars. Developers use these prompts to patch bad behavior or force good behavior. Some of these patches are clear examples of [fighting-the-weights](https://www.dbreunig.com/2025/11/11/don-t-fight-the-weights.html), where one has to repeat the instructions, or say it in ALL CAPS, or use forceful language like NEVER, ALWAYS, etc.
+
+This struggle proves that the model is biased in specific ways. Knowing these biases is very useful since we use these models for work every day. Further, looking at these scars lets us make meaningful conjectures about *why* the model is biased, and that might reveal hidden details about the data it learned from, or how it was trained.
+
+While there are several such topics that require fighting models, I'll take up two topics in this post that appear across many system prompts: tool call parallelism, and comments in code.
 
 ## Tool call parallelism
 
