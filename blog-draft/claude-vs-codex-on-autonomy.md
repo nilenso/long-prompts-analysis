@@ -6,23 +6,19 @@ While there are many similarities and differences between them, one of the most 
 
 ### You are a…
 
-Codex has system prompts organised per model and version. Claude Code has a single prompt independent of models as far as we can tell, although the prompt keeps changing as the models evolve. Right from the start in their identity, they diverge in how they define their identity.
+Right from the start, they diverge in how they define their identity. Claude Code has always described itself as an "interactive tool/agent to help the user", whereas Codex has long taken the stance of "a coding agent". The latest 5.3-codex release shows a slight reversal in this position with the addition of "collaboration" with the user.
+
+Even though this might be a single line, this defines the identiy, and is at the beginning of every single instruction to the LLM. So, this line holds weight. Here are the relevant excerpts from the prompts over time:
 
 | Model | Identity in the system prompt |
 |-------|-----------------------|
 | [gpt-5.2](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/codex/base-models/2026-01-12_87f7226cc_gpt_5_2_prompt.txt) | You are GPT-5.2 running in the Codex CLI, a terminal-based coding assistant.
 | [gpt-5.2-codex](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/codex-cli-model-releases-filtered/2025-12-18_gpt-5.2-codex_caribou.txt#L1) | You are Codex, based on GPT-5. You are running as a coding agent in the Codex CLI on a user's computer.
 | [gpt-5.3-codex](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/codex/codex-models/2026-02-05_9efb7f4a1_gpt-5.3-codex-prompt.txt#L1) | You are Codex, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals
-
-Codex 5.2 describes itself as an `assistant`, and 5.2-codex calls itself a `coding agent`. While this depicts a march towards more agency, the latest 5.3-codex's prompt adds a `collaborate` suggesting a slight reversal of the position.
-
-
-| Model | Identity in the system prompt | 
-|-------|--------------------------|
 | [Sonnet-4.5](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/claude-code-model-releases-filtered/06_2025-09-25_v1.0.125_pre-v2-peak.md) | You are Claude Code, Anthropic's official CLI for Claude. You are an interactive CLI tool that helps users with software engineering tasks.
 | [Opus-4.6](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/claude-code-model-releases-filtered/17_2026-02-10_v2.1.39.md) | You are a Claude agent, built on Anthropic's Claude Agent SDK. You are an interactive agent that helps users with software engineering tasks. 
 
-Claude Code, by contrast, describes itself as `an interactive CLI tool/agent that helps users`. It has recently moved towards a broader "agent" identity rather confining itself to the CLI.
+Both of them seem to be moving towards more autonomy, with assistant -> coding agent. But the "help users with software engineering _tasks_" vs "collaborate to achieve the user's _goals_" still signals different levels of agency at which it's meant to operate.
 
 ### Should it stop and ask questions, or keep going?
 
