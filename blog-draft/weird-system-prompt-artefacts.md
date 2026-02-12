@@ -1,6 +1,6 @@
-# Interesting quirks in system prompts of coding agents
+# Weird system prompt artefacts
 
-System prompts often expose a system’s scars. Much like the small hacks that accumulate in a codebase to handle edge cases, bugs, or behavioral quirks, a model’s undesirable behaviors are frequently addressed with simple, corrective instructions in the system prompt. Over time, those fixes pile up, leaving a legacy prompt dotted with idiosyncratic patches. When someone new encounters it, they form conjectures around what underlying behaviour patch was trying to fix.
+Much like the small hacks that accumulate in a codebase to handle edge cases, bugs, or behavioral quirks, a model’s undesirable behaviors are frequently addressed with simple, corrective instructions in the system prompt. Over time, those fixes pile up, leaving a legacy prompt dotted with idiosyncratic patches. When someone new encounters it, and there isn't an documented rationale for the patch, they form conjectures around what underlying behaviour patch was trying to fix.
 
 I’m going to walk through a few of these peculiar system-prompt patches in some coding agents and offer some conjectures about the underlying model behaviors they’re meant to address, or perhaps some engineering decisions made in the harnesses. These aren't proven conjectures, but merely reverse-engineering thought exercises to understand model or harness behaviour.
 
