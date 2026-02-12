@@ -5,6 +5,7 @@
     {
       "id": "572a6d6a-0520-4a9b-8e0a-00f41ad40d3c",
       "filename": "01_2025-05-22_v1.0.0_opus-4_sonnet-4_initial.md",
+      "title": "Sonnet 4",
       "conversation": {
         "messages": [
           {
@@ -412,6 +413,7 @@
     {
       "id": "4fa20d1a-7ce9-4454-a7bf-e5e8c353c2cd",
       "filename": "02_2025-07-08_v1.0.45_new-features.md",
+      "title": "2025-07-08",
       "conversation": {
         "messages": [
           {
@@ -658,6 +660,7 @@
     {
       "id": "f8a64503-def4-4197-a196-c2c533ad51ed",
       "filename": "03_2025-07-24_v1.0.60_plan-mode.md",
+      "title": "2025-07-24",
       "conversation": {
         "messages": [
           {
@@ -715,6 +718,7 @@
     {
       "id": "9ead8bfd-d788-448f-89a3-19c48598ada3",
       "filename": "04_2025-08-05_v1.0.69_opus-4.1.md",
+      "title": "Opus-4.1",
       "conversation": {
         "messages": [
           {
@@ -1122,6 +1126,7 @@
     {
       "id": "e2a4c426-e78b-4df2-a4a6-e9060b0250fa",
       "filename": "05_2025-08-08_v1.0.72_new-agent-types.md",
+      "title": "2025-08-08",
       "conversation": {
         "messages": [
           {
@@ -1459,6 +1464,7 @@
     {
       "id": "b434161c-58a6-406d-902e-b571c4256606",
       "filename": "06_2025-09-25_v1.0.125_pre-v2-peak.md",
+      "title": "2025-09-25",
       "conversation": {
         "messages": [
           {
@@ -1789,6 +1795,7 @@
     {
       "id": "ec5e752e-dd90-4849-ba6a-81c964e57b47",
       "filename": "07_2025-09-29_v2.0.0_sonnet-4.5_major-refactor.md",
+      "title": "Sonnet-4.5",
       "conversation": {
         "messages": [
           {
@@ -2035,6 +2042,7 @@
     {
       "id": "c4fa2a30-e284-46f1-ab7c-d86fd7ba281a",
       "filename": "08_2025-10-08_v2.0.11_trimmed.md",
+      "title": "2025-10-08",
       "conversation": {
         "messages": [
           {
@@ -2407,6 +2415,7 @@
     {
       "id": "b5a67073-1046-43cd-9f0a-0e9c86d9e6be",
       "filename": "09_2025-10-15_v2.0.17_haiku-4.5.md",
+      "title": "Haiku-4.5",
       "conversation": {
         "messages": [
           {
@@ -2639,6 +2648,7 @@
     {
       "id": "68db7e65-3be4-4a19-b37b-69d61f118848",
       "filename": "10_2025-11-24_v2.0.51_opus-4.5_security.md",
+      "title": "Opus-4.5",
       "conversation": {
         "messages": [
           {
@@ -2913,6 +2923,7 @@
     {
       "id": "d77e2b5a-dbf3-4e22-bca0-b029cb2ca82e",
       "filename": "11_2025-12-05_v2.0.60.md",
+      "title": "2025-12-05",
       "conversation": {
         "messages": [
           {
@@ -3334,6 +3345,7 @@
     {
       "id": "596355eb-5ca2-4a5a-8b49-83c3345f3dbc",
       "filename": "12_2025-12-16_v2.0.71.md",
+      "title": "2025-12-16",
       "conversation": {
         "messages": [
           {
@@ -3594,6 +3606,7 @@
     {
       "id": "c395611d-de33-4ac4-8a70-a18261945328",
       "filename": "13_2026-01-07_v2.1.0_major-version.md",
+      "title": "2026-01-07",
       "conversation": {
         "messages": [
           {
@@ -3868,6 +3881,7 @@
     {
       "id": "7dd46305-e937-4bad-9f4b-e1032176b16d",
       "filename": "14_2026-01-13_v2.1.6.md",
+      "title": "2026-01-13",
       "conversation": {
         "messages": [
           {
@@ -4107,6 +4121,7 @@
     {
       "id": "8c1861ee-68e9-4723-8441-d394f0f1f0a8",
       "filename": "15_2026-01-29_v2.1.25_latest.md",
+      "title": "2026-01-29",
       "conversation": {
         "messages": [
           {
@@ -4521,7 +4536,7 @@
     {
       "id": "c1af71ef-1208-4566-bc19-5e82ed2f507e",
       "filename": "16_2026-02-10_v2.1.39.md",
-      "title": "17_2026-02-10_v2.1.39.md",
+      "title": "Opus-4.6",
       "conversation": {
         "messages": [
           {
@@ -4853,6 +4868,7 @@
       {
         "fileId": "572a6d6a-0520-4a9b-8e0a-00f41ad40d3c",
         "filename": "01_2025-05-22_v1.0.0_opus-4_sonnet-4_initial.md",
+        "title": "Sonnet 4",
         "totalTokens": 11884,
         "turnCount": 0,
         "messageCount": 1,
@@ -4867,6 +4883,7 @@
       {
         "fileId": "4fa20d1a-7ce9-4454-a7bf-e5e8c353c2cd",
         "filename": "02_2025-07-08_v1.0.45_new-features.md",
+        "title": "2025-07-08",
         "totalTokens": 12301,
         "turnCount": 0,
         "messageCount": 1,
@@ -4881,6 +4898,7 @@
       {
         "fileId": "f8a64503-def4-4197-a196-c2c533ad51ed",
         "filename": "03_2025-07-24_v1.0.60_plan-mode.md",
+        "title": "2025-07-24",
         "totalTokens": 12838,
         "turnCount": 0,
         "messageCount": 1,
@@ -4894,6 +4912,7 @@
       {
         "fileId": "9ead8bfd-d788-448f-89a3-19c48598ada3",
         "filename": "04_2025-08-05_v1.0.69_opus-4.1.md",
+        "title": "Opus-4.1",
         "totalTokens": 12498,
         "turnCount": 0,
         "messageCount": 1,
@@ -4908,6 +4927,7 @@
       {
         "fileId": "e2a4c426-e78b-4df2-a4a6-e9060b0250fa",
         "filename": "05_2025-08-08_v1.0.72_new-agent-types.md",
+        "title": "2025-08-08",
         "totalTokens": 13022,
         "turnCount": 0,
         "messageCount": 1,
@@ -4922,6 +4942,7 @@
       {
         "fileId": "b434161c-58a6-406d-902e-b571c4256606",
         "filename": "06_2025-09-25_v1.0.125_pre-v2-peak.md",
+        "title": "2025-09-25",
         "totalTokens": 13767,
         "turnCount": 0,
         "messageCount": 1,
@@ -4936,6 +4957,7 @@
       {
         "fileId": "ec5e752e-dd90-4849-ba6a-81c964e57b47",
         "filename": "07_2025-09-29_v2.0.0_sonnet-4.5_major-refactor.md",
+        "title": "Sonnet-4.5",
         "totalTokens": 12739,
         "turnCount": 0,
         "messageCount": 1,
@@ -4950,6 +4972,7 @@
       {
         "fileId": "c4fa2a30-e284-46f1-ab7c-d86fd7ba281a",
         "filename": "08_2025-10-08_v2.0.11_trimmed.md",
+        "title": "2025-10-08",
         "totalTokens": 12120,
         "turnCount": 0,
         "messageCount": 1,
@@ -4964,6 +4987,7 @@
       {
         "fileId": "b5a67073-1046-43cd-9f0a-0e9c86d9e6be",
         "filename": "09_2025-10-15_v2.0.17_haiku-4.5.md",
+        "title": "Haiku-4.5",
         "totalTokens": 12436,
         "turnCount": 0,
         "messageCount": 1,
@@ -4978,6 +5002,7 @@
       {
         "fileId": "68db7e65-3be4-4a19-b37b-69d61f118848",
         "filename": "10_2025-11-24_v2.0.51_opus-4.5_security.md",
+        "title": "Opus-4.5",
         "totalTokens": 14593,
         "turnCount": 0,
         "messageCount": 1,
@@ -4992,6 +5017,7 @@
       {
         "fileId": "d77e2b5a-dbf3-4e22-bca0-b029cb2ca82e",
         "filename": "11_2025-12-05_v2.0.60.md",
+        "title": "2025-12-05",
         "totalTokens": 15065,
         "turnCount": 0,
         "messageCount": 1,
@@ -5006,6 +5032,7 @@
       {
         "fileId": "596355eb-5ca2-4a5a-8b49-83c3345f3dbc",
         "filename": "12_2025-12-16_v2.0.71.md",
+        "title": "2025-12-16",
         "totalTokens": 16011,
         "turnCount": 0,
         "messageCount": 1,
@@ -5020,6 +5047,7 @@
       {
         "fileId": "c395611d-de33-4ac4-8a70-a18261945328",
         "filename": "13_2026-01-07_v2.1.0_major-version.md",
+        "title": "2026-01-07",
         "totalTokens": 15536,
         "turnCount": 0,
         "messageCount": 1,
@@ -5034,6 +5062,7 @@
       {
         "fileId": "7dd46305-e937-4bad-9f4b-e1032176b16d",
         "filename": "14_2026-01-13_v2.1.6.md",
+        "title": "2026-01-13",
         "totalTokens": 16583,
         "turnCount": 0,
         "messageCount": 1,
@@ -5048,6 +5077,7 @@
       {
         "fileId": "8c1861ee-68e9-4723-8441-d394f0f1f0a8",
         "filename": "15_2026-01-29_v2.1.25_latest.md",
+        "title": "2026-01-29",
         "totalTokens": 16513,
         "turnCount": 0,
         "messageCount": 1,
@@ -5062,7 +5092,7 @@
       {
         "fileId": "c1af71ef-1208-4566-bc19-5e82ed2f507e",
         "filename": "16_2026-02-10_v2.1.39.md",
-        "title": "17_2026-02-10_v2.1.39.md",
+        "title": "Opus-4.6",
         "totalTokens": 16949,
         "turnCount": 0,
         "messageCount": 1,
