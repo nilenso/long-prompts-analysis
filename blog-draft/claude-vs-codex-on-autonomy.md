@@ -100,7 +100,7 @@ And Cursor CLI seems to take a similar route to Codex, giving the agent full aut
 
 ### It is very likely that Codex models are RL’d on this behaviour
 
-In the [5.2-codex model](https://github.com/openai/codex/blob/932a5a446f42e566c0dbd3004ae2cee50cdcc0ce/codex-rs/core/gpt-5.2-codex_prompt.md)’s prompt, the sections around autonomy, ambition, etc. are all gone. And its prompt is only half the size of prompt for GPT-5.2. And the codex model release notes mention that it is made for [long-running tasks](https://openai.com/index/gpt-5-1-codex-max/), which hints at autonomy being baked in.
+In the [5.2-codex model](https://github.com/openai/codex/blob/932a5a446f42e566c0dbd3004ae2cee50cdcc0ce/codex-rs/core/gpt-5.2-codex_prompt.md)’s prompt, the sections around autonomy, ambition, etc. are all gone. And its prompt is only half the size of prompt for GPT-5.2. And the codex model release notes mention that it is made for [long-running tasks](https://openai.com/index/gpt-5-1-codex-max/), which hints at autonomy being baked in through post-training.
 
 Any customisation through model post-training is opaque to end users, unfortunately.
 
