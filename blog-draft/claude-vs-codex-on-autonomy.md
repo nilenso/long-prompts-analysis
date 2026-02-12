@@ -3,15 +3,26 @@
 I spent some time studying the system prompts of coding agent harnesses like [Codex CLI](https://github.com/openai/codex/blob/main/codex-rs/core/gpt_5_2_prompt.md) and [Claude Code](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code-2025-11-1.md). These prompts reveal the priorities, values, and scars of their products. They’re both only a few pages long and are worth reading in full, especially if you use them every day. This is a more grounded approach to understanding these products than the vibe-based analysis you might see on your timeline.
 
 While there are many similarities and differences between them, one of the most well-perceived differences between Claude Code and Codex CLI is **autonomy**, and in this post I’ll share what I observed. We tend to perceive autonomous behaviour as long-running, independent, or requiring less supervision and guidance. Reading the system prompts, it becomes apparent that _the products make very different, and very intentional choices_.
+
 ### You are a…
 
-Here’s how the system prompts begin:
+Codex has system prompts organised per model and version. Claude Code has a single prompt independent of models as far as we can tell, although the prompt keeps changing as the models evolve. Right from the start in their identity, they diverge in how they define their identity.
 
-- Codex / GPT-5.2: `You are GPT-5.2 running in the Codex CLI, a terminal-based coding assistant.`
-- Claude Code / Opus-4.5: `You are Claude Code, Anthropic's official CLI for Claude. You are an interactive CLI tool that helps users with software engineering tasks.`
-- Codex / GPT-5.2-Codex: `You are Codex, based on GPT-5. You are running as a coding agent in the Codex CLI on a user's computer.`
+| Model | Identity in the system prompt |
+|-------|-----------------------|
+| [gpt-5.2](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/codex/base-models/2026-01-12_87f7226cc_gpt_5_2_prompt.txt) | You are GPT-5.2 running in the Codex CLI, a terminal-based coding assistant.
+| [gpt-5.2-codex](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/codex-cli-model-releases-filtered/2025-12-18_gpt-5.2-codex_caribou.txt#L1) | You are Codex, based on GPT-5. You are running as a coding agent in the Codex CLI on a user's computer.
+| [gpt-5.3-codex](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/codex/codex-models/2026-02-05_9efb7f4a1_gpt-5.3-codex-prompt.txt#L1) | You are Codex, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals
 
-Codex 5.2 describes itself as an `assistant`, while 5.2-codex calls itself a `coding agent`. Claude Code, by contrast, describes itself as `an interactive CLI tool that helps users`. Right from the start, they diverge in how they define their identity.
+Codex 5.2 describes itself as an `assistant`, and 5.2-codex calls itself a `coding agent`. While this depicts a march towards more agency, the latest 5.3-codex's prompt adds a `collaborate` suggesting a slight reversal of the position.
+
+
+| Model | Identity in the system prompt | 
+|-------|--------------------------|
+| [Sonnet-4.5](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/claude-code-model-releases-filtered/06_2025-09-25_v1.0.125_pre-v2-peak.md) | You are Claude Code, Anthropic's official CLI for Claude. You are an interactive CLI tool that helps users with software engineering tasks.
+| [Opus-4.6](https://github.com/nilenso/long-prompts-analysis/blob/main/codex-and-claude-system-prompts/data/claude-code-model-releases-filtered/17_2026-02-10_v2.1.39.md) | You are a Claude agent, built on Anthropic's Claude Agent SDK. You are an interactive agent that helps users with software engineering tasks. 
+
+Claude Code, by contrast, describes itself as `an interactive CLI tool/agent that helps users`. It has recently moved towards a broader "agent" identity rather confining itself to the CLI.
 
 ### Should it stop and ask questions, or keep going?
 
