@@ -1,6 +1,6 @@
 # How System Prompts Reveal Model Biases
 
-The system prompts of coding agents show their growth scars. Developers use these prompts to patch bad behavior or force good behavior. Some of these patches are clear examples of [fighting-the-weights](https://www.dbreunig.com/2025/11/11/don-t-fight-the-weights.html), where one has to repeat the instructions, or say it in ALL CAPS, or use forceful language like NEVER, ALWAYS, etc.
+Developers of coding agents use system prompts to patch bad behavior or force good behavior. Some of these patches are clear examples of [fighting-the-weights](https://www.dbreunig.com/2025/11/11/don-t-fight-the-weights.html), where one has to repeat the instructions, or say it in ALL CAPS, or use forceful language like MUST, NEVER, ALWAYS, etc.
 
 This struggle proves that the model is biased in specific ways. Knowing these biases is very useful since we use these models for work every day. Further, looking at these scars lets us make meaningful conjectures about *why* the model is biased, and that might reveal hidden details about the data it learned from, or how it was trained.
 
