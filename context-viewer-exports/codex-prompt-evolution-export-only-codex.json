@@ -5,6 +5,7 @@
     {
       "id": "8283c24c-7b25-4081-a141-708ed2186dd6",
       "filename": "2025-09-14_916fdc2a3_gpt_5_codex_prompt.txt",
+      "title": "gpt-5-codex",
       "conversation": {
         "messages": [
           {
@@ -83,6 +84,7 @@
     {
       "id": "4266cbda-969a-4017-8b53-bbf1d6a7af3a",
       "filename": "2025-09-14_a79705192_gpt_5_codex_prompt.txt",
+      "title": "2025-09-14",
       "conversation": {
         "messages": [
           {
@@ -168,6 +170,7 @@
     {
       "id": "e94554c1-4d79-48a2-a174-eb4f0cd896b7",
       "filename": "2025-09-15_d60cbed69_gpt_5_codex_prompt.txt",
+      "title": "2025-09-15",
       "conversation": {
         "messages": [
           {
@@ -253,6 +256,7 @@
     {
       "id": "5d066be4-289a-4aeb-af46-3d205ff9db48",
       "filename": "2025-09-15_f037b2fd5_gpt_5_codex_prompt.txt",
+      "title": "2025-09-15",
       "conversation": {
         "messages": [
           {
@@ -338,6 +342,7 @@
     {
       "id": "e915ccc1-ec7d-4966-8e5f-6e60448d317c",
       "filename": "2025-09-17_c9505488a_gpt_5_codex_prompt.txt",
+      "title": "2025-09-17",
       "conversation": {
         "messages": [
           {
@@ -423,6 +428,7 @@
     {
       "id": "65e697e2-bade-4aca-8790-89c841a8d531",
       "filename": "2025-09-30_f6a152848_gpt_5_codex_prompt.txt",
+      "title": "2025-09-30",
       "conversation": {
         "messages": [
           {
@@ -508,6 +514,7 @@
     {
       "id": "a05ddee7-a37b-4afb-b0ff-3664b7d21453",
       "filename": "2025-10-01_5d78c1edd_gpt_5_codex_prompt.txt",
+      "title": "2025-10-01",
       "conversation": {
         "messages": [
           {
@@ -628,6 +635,7 @@
     {
       "id": "2c4320ce-5141-4bf7-bb26-575edf2f1e2a",
       "filename": "2025-10-01_35c76ad47_gpt_5_codex_prompt.txt",
+      "title": "2025-10-01",
       "conversation": {
         "messages": [
           {
@@ -713,6 +721,7 @@
     {
       "id": "527b75ff-e807-4955-8e4a-3d0a2a30e23b",
       "filename": "2025-10-04_0ad1b0782_gpt_5_codex_prompt.txt",
+      "title": "2025-10-04",
       "conversation": {
         "messages": [
           {
@@ -798,6 +807,7 @@
     {
       "id": "2508705e-8e09-4122-b3ea-950e2792ba0d",
       "filename": "2025-11-06_8c75ed39d_gpt_5_codex_prompt.txt",
+      "title": "2025-11-06",
       "conversation": {
         "messages": [
           {
@@ -883,6 +893,7 @@
     {
       "id": "c8e4bc97-f801-4122-99af-2c36b1077e79",
       "filename": "2025-11-17_daf77b845_gpt_5_codex_prompt.txt",
+      "title": "2025-11-17",
       "conversation": {
         "messages": [
           {
@@ -968,6 +979,7 @@
     {
       "id": "132d6f75-334f-40aa-b404-d3ba0e400801",
       "filename": "2025-11-18_7e0e675db_arcticfox_prompt.txt",
+      "title": "2025-11-18",
       "conversation": {
         "messages": [
           {
@@ -1060,6 +1072,7 @@
     {
       "id": "c9f96c32-f36d-47b2-ab20-0a328fc149b4",
       "filename": "2025-11-19_d5dfba250_gpt-5.1-codex-max_prompt.txt",
+      "title": "gpt-5.1-codex-max",
       "conversation": {
         "messages": [
           {
@@ -1152,6 +1165,7 @@
     {
       "id": "43d14ab3-5e34-4cfe-b059-f58a3a86882b",
       "filename": "2025-12-10_e0fb3ca1d_gpt_5_codex_prompt.txt",
+      "title": "gpt-5-codex",
       "conversation": {
         "messages": [
           {
@@ -1237,6 +1251,7 @@
     {
       "id": "3d13be29-daf2-41a7-91a9-f06b04295e9a",
       "filename": "2025-12-10_e0fb3ca1d_gpt-5.1-codex-max_prompt.txt",
+      "title": "gpt-5.1-codex-max",
       "conversation": {
         "messages": [
           {
@@ -1329,6 +1344,7 @@
     {
       "id": "abf09c05-1d7b-427f-be44-51f7f2420b4b",
       "filename": "2025-12-18_f084e5264_gpt-5.2-codex_prompt.txt",
+      "title": "gpt-5.2-codex",
       "conversation": {
         "messages": [
           {
@@ -1421,6 +1437,7 @@
     {
       "id": "aa6b5fa4-a9c5-4438-a96a-a92d3124d116",
       "filename": "2026-01-12_87f7226cc_gpt_5_codex_prompt.txt",
+      "title": "gpt-5-codex",
       "conversation": {
         "messages": [
           {
@@ -1499,6 +1516,7 @@
     {
       "id": "385cb750-f76c-4602-b30b-78b0e5330e35",
       "filename": "2026-01-12_87f7226cc_gpt-5.1-codex-max_prompt.txt",
+      "title": "gpt-5.1-codex-max",
       "conversation": {
         "messages": [
           {
@@ -1584,6 +1602,7 @@
     {
       "id": "12637160-2396-42b7-b85b-2470126be325",
       "filename": "2026-01-12_87f7226cc_gpt-5.2-codex_prompt.txt",
+      "title": "gpt-5.2-codex",
       "conversation": {
         "messages": [
           {
@@ -1669,6 +1688,7 @@
     {
       "id": "5f2a9d0c-8f76-4b36-81bf-776638896e4c",
       "filename": "2026-02-05_9efb7f4a1_gpt-5.3-codex-prompt.txt",
+      "title": "gpt-5.3-codex",
       "conversation": {
         "messages": [
           {
@@ -1827,6 +1847,7 @@
       {
         "fileId": "8283c24c-7b25-4081-a141-708ed2186dd6",
         "filename": "2025-09-14_916fdc2a3_gpt_5_codex_prompt.txt",
+        "title": "gpt-5-codex",
         "totalTokens": 2166,
         "turnCount": 0,
         "messageCount": 1,
@@ -1840,6 +1861,7 @@
       {
         "fileId": "4266cbda-969a-4017-8b53-bbf1d6a7af3a",
         "filename": "2025-09-14_a79705192_gpt_5_codex_prompt.txt",
+        "title": "2025-09-14",
         "totalTokens": 1911,
         "turnCount": 0,
         "messageCount": 1,
@@ -1854,6 +1876,7 @@
       {
         "fileId": "e94554c1-4d79-48a2-a174-eb4f0cd896b7",
         "filename": "2025-09-15_d60cbed69_gpt_5_codex_prompt.txt",
+        "title": "2025-09-15",
         "totalTokens": 2082,
         "turnCount": 0,
         "messageCount": 1,
@@ -1868,6 +1891,7 @@
       {
         "fileId": "5d066be4-289a-4aeb-af46-3d205ff9db48",
         "filename": "2025-09-15_f037b2fd5_gpt_5_codex_prompt.txt",
+        "title": "2025-09-15",
         "totalTokens": 2087,
         "turnCount": 0,
         "messageCount": 1,
@@ -1882,6 +1906,7 @@
       {
         "fileId": "e915ccc1-ec7d-4966-8e5f-6e60448d317c",
         "filename": "2025-09-17_c9505488a_gpt_5_codex_prompt.txt",
+        "title": "2025-09-17",
         "totalTokens": 2226,
         "turnCount": 0,
         "messageCount": 1,
@@ -1896,6 +1921,7 @@
       {
         "fileId": "65e697e2-bade-4aca-8790-89c841a8d531",
         "filename": "2025-09-30_f6a152848_gpt_5_codex_prompt.txt",
+        "title": "2025-09-30",
         "totalTokens": 2292,
         "turnCount": 0,
         "messageCount": 1,
@@ -1910,6 +1936,7 @@
       {
         "fileId": "a05ddee7-a37b-4afb-b0ff-3664b7d21453",
         "filename": "2025-10-01_5d78c1edd_gpt_5_codex_prompt.txt",
+        "title": "2025-10-01",
         "totalTokens": 2226,
         "turnCount": 0,
         "messageCount": 1,
@@ -1924,6 +1951,7 @@
       {
         "fileId": "2c4320ce-5141-4bf7-bb26-575edf2f1e2a",
         "filename": "2025-10-01_35c76ad47_gpt_5_codex_prompt.txt",
+        "title": "2025-10-01",
         "totalTokens": 2228,
         "turnCount": 0,
         "messageCount": 1,
@@ -1937,6 +1965,7 @@
       {
         "fileId": "527b75ff-e807-4955-8e4a-3d0a2a30e23b",
         "filename": "2025-10-04_0ad1b0782_gpt_5_codex_prompt.txt",
+        "title": "2025-10-04",
         "totalTokens": 2336,
         "turnCount": 0,
         "messageCount": 1,
@@ -1951,6 +1980,7 @@
       {
         "fileId": "2508705e-8e09-4122-b3ea-950e2792ba0d",
         "filename": "2025-11-06_8c75ed39d_gpt_5_codex_prompt.txt",
+        "title": "2025-11-06",
         "totalTokens": 2349,
         "turnCount": 0,
         "messageCount": 1,
@@ -1965,6 +1995,7 @@
       {
         "fileId": "c8e4bc97-f801-4122-99af-2c36b1077e79",
         "filename": "2025-11-17_daf77b845_gpt_5_codex_prompt.txt",
+        "title": "2025-11-17",
         "totalTokens": 2295,
         "turnCount": 0,
         "messageCount": 1,
@@ -1978,6 +2009,7 @@
       {
         "fileId": "132d6f75-334f-40aa-b404-d3ba0e400801",
         "filename": "2025-11-18_7e0e675db_arcticfox_prompt.txt",
+        "title": "2025-11-18",
         "totalTokens": 2484,
         "turnCount": 0,
         "messageCount": 1,
@@ -1991,6 +2023,7 @@
       {
         "fileId": "c9f96c32-f36d-47b2-ab20-0a328fc149b4",
         "filename": "2025-11-19_d5dfba250_gpt-5.1-codex-max_prompt.txt",
+        "title": "gpt-5.1-codex-max",
         "totalTokens": 2483,
         "turnCount": 0,
         "messageCount": 1,
@@ -2005,6 +2038,7 @@
       {
         "fileId": "43d14ab3-5e34-4cfe-b059-f58a3a86882b",
         "filename": "2025-12-10_e0fb3ca1d_gpt_5_codex_prompt.txt",
+        "title": "gpt-5-codex",
         "totalTokens": 2286,
         "turnCount": 0,
         "messageCount": 1,
@@ -2019,6 +2053,7 @@
       {
         "fileId": "3d13be29-daf2-41a7-91a9-f06b04295e9a",
         "filename": "2025-12-10_e0fb3ca1d_gpt-5.1-codex-max_prompt.txt",
+        "title": "gpt-5.1-codex-max",
         "totalTokens": 2474,
         "turnCount": 0,
         "messageCount": 1,
@@ -2033,6 +2068,7 @@
       {
         "fileId": "abf09c05-1d7b-427f-be44-51f7f2420b4b",
         "filename": "2025-12-18_f084e5264_gpt-5.2-codex_prompt.txt",
+        "title": "gpt-5.2-codex",
         "totalTokens": 2474,
         "turnCount": 0,
         "messageCount": 1,
@@ -2047,6 +2083,7 @@
       {
         "fileId": "aa6b5fa4-a9c5-4438-a96a-a92d3124d116",
         "filename": "2026-01-12_87f7226cc_gpt_5_codex_prompt.txt",
+        "title": "gpt-5-codex",
         "totalTokens": 1435,
         "turnCount": 0,
         "messageCount": 1,
@@ -2060,6 +2097,7 @@
       {
         "fileId": "385cb750-f76c-4602-b30b-78b0e5330e35",
         "filename": "2026-01-12_87f7226cc_gpt-5.1-codex-max_prompt.txt",
+        "title": "gpt-5.1-codex-max",
         "totalTokens": 1623,
         "turnCount": 0,
         "messageCount": 1,
@@ -2074,6 +2112,7 @@
       {
         "fileId": "12637160-2396-42b7-b85b-2470126be325",
         "filename": "2026-01-12_87f7226cc_gpt-5.2-codex_prompt.txt",
+        "title": "gpt-5.2-codex",
         "totalTokens": 1623,
         "turnCount": 0,
         "messageCount": 1,
@@ -2088,6 +2127,7 @@
       {
         "fileId": "5f2a9d0c-8f76-4b36-81bf-776638896e4c",
         "filename": "2026-02-05_9efb7f4a1_gpt-5.3-codex-prompt.txt",
+        "title": "gpt-5.3-codex",
         "totalTokens": 2526,
         "turnCount": 0,
         "messageCount": 1,
