@@ -1,6 +1,5 @@
 {
   "version": "1.0",
-  "title": "System prompt composition",
   "exportedAt": "2026-02-05T20:28:43.152Z",
   "files": [
     {
@@ -713,6 +712,7 @@
     {
       "id": "960d42ad-314c-44cf-8594-4b009ef528a1",
       "name": "Grouped: moonshot-kimi-cli-official_latest_current.md.json.json.json, google-gemini-cli-official_latest_current.md.json.json.json, cursor-agent-cli_na_2025-08-07.md.json.json.json, anthropic-claude-code_na_2025-11-01.txt.json.json.json, openhands-official_latest_current.txt.json.json.json, openai-codex-cli_na_2025-09-24.txt.json.json.json",
+      "title": "System prompt composition",
       "fileIds": [
         "87d95225-eec4-4872-8250-b1b1e03b7b9e",
         "3b4aa6cc-54a3-4d63-a468-a0cfd43f85d3",
