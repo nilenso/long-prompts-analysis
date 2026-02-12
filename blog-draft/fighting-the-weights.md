@@ -48,7 +48,7 @@ Models need to be told multiple times, and forcefully to batch tool calls, or to
 I haven't measured the resultant level of parallelism in these harnesses yet. Perhaps the model _does_ parallelise some tool calls by itself, just not enough. And perhaps some of these products don't care about how quickly the work gets done, so they haven't paid attention to it yet. The benchmarks like SWE Bench Pro don't measure execution time, so they haven't had the incentive to, perhaps.
 
 My conjectures:
-1. Batching tool calls => harness will parallelise them => efficient. Most of today's models don't understand this. It's not in the training data, and it's likely not rewarded as a behaviour. Yet.
+1. Models don't understand that batching multiple tool calls causes the harness to parallelise them for efficiency. This is not in the training data, and it's likely not rewarded as a behaviour. Yet.
 2. RL Environments for tool use likely do not have parallelism in tool execution. Or they don't reward that kind of efficiency. The inference-time harnesses are likely bare-bones, and just give feedback on simple things like whether the code works, and does what it should.
 3. Instructing the model (forcefully) has the intended effect, so they have some limited ability to follow that instruction. So, using the words `parallel`, `batch`, `multiple` etc in user-prompts will likely nudge the models to be more time-efficient. And the corollary would be that telling it not to parallelise might help with being token efficient at the cost of speed.
 4. Newer OpenAI models are likely rewarded for parallel tool calls. Many next-generation models will also be trained this way, leading to this instruction becoming unnecessary.
