@@ -45,17 +45,14 @@ Models need to be told multiple times, and forcefully to batch tool calls, or to
     - However, with the 5.2 model release, all this instruction vanished, and was replaced with a single line instruction.
     - Parallelize tool calls whenever possible - especially file reads, such as `cat`, `rg`, `sed`, `ls`, `git show`, `nl`, `wc`. Use `multi_tool_use.parallel` to parallelize tool calls and only this.
 
-I haven't measured the resultant level of parallelism in these harnesses yet. Perhaps the model _does_ parallelise some tool calls by itself, just enough enough. And perhaps some of these products don't care about how quickly the work gets done, so they haven't paid attention to it yet. The benchmarks like SWE Bench Pro don't measure execution time, so they haven't had the incentive to, perhaps.
+I haven't measured the resultant level of parallelism in these harnesses yet. Perhaps the model _does_ parallelise some tool calls by itself, just not enough. And perhaps some of these products don't care about how quickly the work gets done, so they haven't paid attention to it yet. The benchmarks like SWE Bench Pro don't measure execution time, so they haven't had the incentive to, perhaps.
 
 My conjectures:
-1. Batching tool calls => harness will parallelise them => efficient. Most of today's models don't quite get this. It's not in the training data, and it's likely not rewarded as a behaviour. Yet.
-2. RL Environments for tool use likely do not have parallelism in tool execution. Or they don't reward that kind of efficiency. The inference-time harnesses are likely bare-bones, and just give feedback on simple things like whether the code works, does what it should.
+1. Batching tool calls => harness will parallelise them => efficient. Most of today's models don't understand this. It's not in the training data, and it's likely not rewarded as a behaviour. Yet.
+2. RL Environments for tool use likely do not have parallelism in tool execution. Or they don't reward that kind of efficiency. The inference-time harnesses are likely bare-bones, and just give feedback on simple things like whether the code works, and does what it should.
 3. Instructing the model (forcefully) has the intended effect, so they have some limited ability to follow that instruction. So, using the words `parallel`, `batch`, `multiple` etc in user-prompts will likely nudge the models to be more time-efficient. And the corollary would be that telling it not to parallelise might help with being token efficient at the cost of speed.
 4. Newer OpenAI models are likely rewarded for parallel tool calls. Many next-generation models will also be trained this way, leading to this instruction becoming unnecessary.
 5. There isn't enough emphasis on striking a balance between reading many files in parallel and token efficiency. Currently, as per the system prompts, the balance seems to tip in the favour of speed over token efficiency. As the token economics change over the years, the models' rewards would need rewiring, and the prompts might need re-writing. So, we might actually see different model versions or adapter layers that skew the efficiency parameters differently.
-
-
-If the inference-time harnesses get more sophisticated over time, that model+harness combo is likely to be the most reliable one, and it's development is likely to be as opaque as RL in model providers. Okay, that's going too far into future-prediction territory, and is not conjecture anymore.
 
 ---
 
@@ -92,8 +89,14 @@ fter long careful study of the code and the issue, will still misinterpret the c
 
 Conjecture time. Why is this prompting necessary? Good code doesn't have comments right?
 
-1. Models are trained to produce tokens to reason, and get more accurate answers. Models, through RL(HF/VR) have a tendency to be verbose about their answers. This capability is generic and doesn't only apply to chat, its a personality that leaks into writing code as well.
+1. Models are trained to produce tokens to reason, and to get more accurate answers. Models, through RL(HF/VR) have a tendency to be verbose about their answers. This capability is generic and doesn't only apply to chat, its a personality that leaks into writing code as well. Claude and Gemini reasoning and talking to the user in comments has been observed by many users.
 2. Models are trained on material that tends to be comment heavy, like snippets, training manuals, notebooks, tutorials, and competitive coding solutions. And the volume of that content is significant enough to bias the weights.
 3. Models aren't rewarded for being token efficient in writing code, and aren't negatively rewarded for writing comments.
 4. Comments aren't the only aspect that's biased poorly towards writing good code. Most prompts also have instructions to write minimal code, not over-engineer, reuse existing abstractions, etc. These are also reflections of the training data.
-5. Because learning-code and professional-code tend to look very different in practice, a model that prioritises one in its training data might have very different behaviour.
+5. Because learning-code and professional-code tend to look very different in practice, a model that prioritises one over the other in its training data might have very different behaviour.
+
+---
+
+In [another article](link to quirks), I wrote about a variety of weird system prompt artefacts. Look up the system prompts of your favourite products, and see what model bias they're fighting. It would leave you with a better understanding of its limitations.
+
+One parting conjecture: RL is a great way to learn / unlearn some of these biases, but that requires the harnesses to be a part of the RL environment. If the inference-time harnesses get more sophisticated over time, that model+harness combo is likely to be the most reliable and efficient one, and it's development is likely to be as opaque as RL is today.
