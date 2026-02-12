@@ -4841,6 +4841,7 @@
   "groups": [
     {
       "id": "b179a05f-2bd4-4012-83ab-42a0cb1e79fd",
+      "title": "Claude Code System Prompt Evolution",
       "name": "Grouped: 01_2025-05-22_v1.0.0_opus-4_sonnet-4_initial.md, 02_2025-07-08_v1.0.45_new-features.md, 03_2025-07-24_v1.0.60_plan-mode.md, 04_2025-08-05_v1.0.69_opus-4.1.md, 05_2025-08-08_v1.0.72_new-agent-types.md, 06_2025-09-25_v1.0.125_pre-v2-peak.md, 07_2025-09-29_v2.0.0_sonnet-4.5_major-refactor.md, 08_2025-10-08_v2.0.11_trimmed.md, 09_2025-10-15_v2.0.17_haiku-4.5.md, 10_2025-11-24_v2.0.51_opus-4.5_security.md, 11_2025-12-05_v2.0.60.md, 12_2025-12-16_v2.0.71.md, 13_2026-01-07_v2.1.0_major-version.md, 14_2026-01-13_v2.1.6.md, 15_2026-01-29_v2.1.25_latest.md, 16_2026-02-10_v2.1.39.md, 16_2026-02-05_v2.1.32.md",
       "fileIds": [
         "572a6d6a-0520-4a9b-8e0a-00f41ad40d3c",

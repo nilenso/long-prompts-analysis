@@ -1817,6 +1817,7 @@
   "groups": [
     {
       "id": "56b68fb5-7221-4c04-807e-b590f138c1fe",
+      "title": "Codex System Prompt Evolution",
       "name": "Grouped: 2025-09-14_916fdc2a3_gpt_5_codex_prompt.txt, 2025-09-14_a79705192_gpt_5_codex_prompt.txt, 2025-09-15_d60cbed69_gpt_5_codex_prompt.txt, 2025-09-15_f037b2fd5_gpt_5_codex_prompt.txt, 2025-09-17_c9505488a_gpt_5_codex_prompt.txt, 2025-09-30_f6a152848_gpt_5_codex_prompt.txt, 2025-10-01_5d78c1edd_gpt_5_codex_prompt.txt, 2025-10-01_35c76ad47_gpt_5_codex_prompt.txt, 2025-10-04_0ad1b0782_gpt_5_codex_prompt.txt, 2025-11-06_8c75ed39d_gpt_5_codex_prompt.txt, 2025-11-17_daf77b845_gpt_5_codex_prompt.txt, 2025-11-18_7e0e675db_arcticfox_prompt.txt, 2025-11-19_d5dfba250_gpt-5.1-codex-max_prompt.txt, 2025-12-10_e0fb3ca1d_gpt_5_codex_prompt.txt, 2025-12-10_e0fb3ca1d_gpt-5.1-codex-max_prompt.txt, 2025-12-18_f084e5264_gpt-5.2-codex_prompt.txt, 2026-01-12_87f7226cc_gpt_5_codex_prompt.txt, 2026-01-12_87f7226cc_gpt-5.1-codex-max_prompt.txt, 2026-01-12_87f7226cc_gpt-5.2-codex_prompt.txt, 2026-02-05_9efb7f4a1_gpt-5.3-codex-prompt.txt",
       "fileIds": [
         "8283c24c-7b25-4081-a141-708ed2186dd6",
