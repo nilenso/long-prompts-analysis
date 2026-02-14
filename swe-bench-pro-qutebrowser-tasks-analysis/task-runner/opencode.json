@@ -1,0 +1,41 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "opus-codex": {
+      "description": "Claude Opus 4.5 with Codex CLI system prompt",
+      "mode": "primary",
+      "model": "anthropic/claude-opus-4-5",
+      "prompt": "{file:prompts/openai-codex-cli_na_2025-09-24.txt}"
+    },
+    "opus-claude": {
+      "description": "Claude Opus 4.5 with Claude Code system prompt",
+      "mode": "primary",
+      "model": "anthropic/claude-opus-4-5",
+      "prompt": "{file:prompts/anthropic-claude-code_na_2025-11-01.txt}"
+    },
+    "gpt-codex": {
+      "description": "GPT 5.2 with Codex CLI system prompt",
+      "mode": "primary",
+      "model": "openai/gpt-5.2",
+      "prompt": "{file:prompts/openai-codex-cli_na_2025-09-24.txt}"
+    },
+    "gpt-claude": {
+      "description": "GPT 5.2 with Claude Code system prompt",
+      "mode": "primary",
+      "model": "openai/gpt-5.2",
+      "prompt": "{file:prompts/anthropic-claude-code_na_2025-11-01.txt}"
+    },
+    "opus-empty": {
+      "description": "Claude Opus 4.5 with no system prompt",
+      "mode": "primary",
+      "model": "anthropic/claude-opus-4-5",
+      "prompt": ""
+    },
+    "gpt-empty": {
+      "description": "GPT 5.2 with no system prompt",
+      "mode": "primary",
+      "model": "openai/gpt-5.2",
+      "prompt": ""
+    }
+  }
+}

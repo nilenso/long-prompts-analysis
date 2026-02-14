@@ -1,0 +1,3 @@
+[submodule "qutebrowser"]
+	path = qutebrowser
+	url = https://github.com/qutebrowser/qutebrowser.git
